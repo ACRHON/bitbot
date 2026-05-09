@@ -20,7 +20,12 @@ jobs:
         run: cd workers && npm ci
 
       - name: Deploy to Cloudflare Workers
-        run: cd workers && ./node_modules/.bin/wrangler deploy
+        run: |
+          echo "=== Deploying Workers ==="
+          cd workers
+          echo "CLOUDFLARE_ACCOUNT_ID is set: ${CLOUDFLARE_ACCOUNT_ID:0:10}..."
+          ./node_modules/.bin/wrangler deploy || { echo "=== DEPLOY FAILED ===" ; cat .wrangler/logs/wrangler.log 2>/dev/null || true; exit 1; }
+          echo "=== Deploy Complete ==="
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
