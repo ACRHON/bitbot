@@ -9,10 +9,13 @@
     "dev:tunnel": "npx lt --port 8787 --subdomain bitbot-dev",
     "dev:frontend-only": "cd frontend && npm run dev",
     "build:frontend": "cd frontend && npm run build",
-    "build:workers": "cd workers && npx wrangler deploy --dry-run"
+    "build:workers": "cd workers && npx wrangler deploy --dry-run",
+    "deploy": "wrangler deploy",
+    "preview": "wrangler dev"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "localtunnel": "^2.0.2"
+    "localtunnel": "^2.0.2",
+    "wrangler": "^4.90.0"
   }
 }
