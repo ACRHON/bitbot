@@ -1,7 +1,9 @@
 name: Deploy bitbot
 
 permissions:
-  contents: read
+  contents: write
+  pages: write
+  id-token: write
 
 on:
   push:
