@@ -1,0 +1,17 @@
+{
+  "name": "bitbot-workers",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npx wrangler dev --port 8787 --local",
+    "deploy": "npx wrangler deploy"
+  },
+  "dependencies": {
+    "@cloudflare/kv-asset-handler": "^0.3.0",
+    "@larksuiteoapi/node-sdk": "^1.5.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240117.0",
+    "wrangler": "^3.0.0"
+  }
+}

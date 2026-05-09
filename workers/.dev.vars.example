@@ -1,0 +1,10 @@
+# Cloudflare Workers Local Development
+
+# For local dev, you can use wrangler dev
+# npx wrangler dev --tunnel (requires cloudflared)
+
+# Or use ngrok to expose local server:
+# ngrok http 8787
+
+# Set your API base in frontend/.env.local:
+VITE_API_BASE=http://localhost:8787

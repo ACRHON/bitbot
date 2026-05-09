@@ -1,0 +1,18 @@
+{
+  "name": "bitbot",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --names \"WORKERS,FRONTEND,TUNNEL\" --prefix-colors \"blue,green,yellow\" \"npm run dev:workers\" \"npm run dev:frontend\" \"npm run dev:tunnel\"",
+    "dev:workers": "cd workers && npx wrangler dev --port 8787",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:tunnel": "npx lt --port 8787 --subdomain bitbot-dev",
+    "dev:frontend-only": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "build:workers": "cd workers && npx wrangler deploy --dry-run"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "localtunnel": "^2.0.2"
+  }
+}
