@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 const LoginPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -60,14 +61,35 @@ const LoginPage: React.FC = () => {
 
           <div className="form-group">
             <label className="form-label">密码</label>
-            <input
-              type="password"
-              className="form-input"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="请输入密码"
-              required
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="form-input"
+                style={{ width: '100%', paddingRight: '40px' }}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="请输入密码"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-secondary)',
+                  fontSize: '14px',
+                  padding: '4px 8px',
+                }}
+              >
+                {showPassword ? '隐藏' : '显示'}
+              </button>
+            </div>
           </div>
 
           {error && (

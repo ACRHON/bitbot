@@ -9,6 +9,8 @@ const RegisterPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -96,28 +98,66 @@ const RegisterPage: React.FC = () => {
 
           <div className="form-group">
             <label className="form-label">密码</label>
-            <input
-              type="password"
-              className="form-input"
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px' }}
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="请输入密码（至少6位）"
-              required
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="form-input"
+                style={{ width: '100%', paddingRight: '50px', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px' }}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="请输入密码（至少6位）"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--primary-color)',
+                  fontSize: '14px',
+                }}
+              >
+                {showPassword ? '隐藏' : '显示'}
+              </button>
+            </div>
           </div>
 
           <div className="form-group">
             <label className="form-label">确认密码</label>
-            <input
-              type="password"
-              className="form-input"
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px' }}
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              placeholder="请再次输入密码"
-              required
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                className="form-input"
+                style={{ width: '100%', paddingRight: '50px', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px' }}
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="请再次输入密码"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--primary-color)',
+                  fontSize: '14px',
+                }}
+              >
+                {showConfirmPassword ? '隐藏' : '显示'}
+              </button>
+            </div>
           </div>
 
           {error && (
