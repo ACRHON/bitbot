@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './admin/AuthContext';
 import { useAuth } from './admin/AuthContext';
 import LoginPage from './admin/LoginPage';
+import RegisterPage from './admin/RegisterPage';
 import AdminLayout from './admin/AdminLayout';
 import AdminDashboard from './admin/AdminDashboard';
 import InstitutionsPage from './admin/InstitutionsPage';
@@ -53,6 +54,7 @@ function App() {
 
           {/* Admin pages */}
           <Route path="/admin/login" element={<LoginPage />} />
+          <Route path="/admin/register" element={<RegisterPage />} />
           <Route
             path="/admin"
             element={
