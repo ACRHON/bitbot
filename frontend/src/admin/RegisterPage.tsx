@@ -102,7 +102,7 @@ const RegisterPage: React.FC = () => {
               <input
                 type={showPassword ? 'text' : 'password'}
                 className="form-input"
-                style={{ width: '100%', paddingRight: '50px', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px' }}
+                style={{ width: '100%', paddingRight: '40px', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px' }}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="请输入密码（至少6位）"
@@ -119,11 +119,20 @@ const RegisterPage: React.FC = () => {
                   background: 'none',
                   border: 'none',
                   cursor: 'pointer',
-                  color: 'var(--primary-color)',
-                  fontSize: '14px',
+                  padding: '4px',
                 }}
               >
-                {showPassword ? '隐藏' : '显示'}
+                {showPassword ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                )}
               </button>
             </div>
           </div>
@@ -134,7 +143,7 @@ const RegisterPage: React.FC = () => {
               <input
                 type={showConfirmPassword ? 'text' : 'password'}
                 className="form-input"
-                style={{ width: '100%', paddingRight: '50px', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px' }}
+                style={{ width: '100%', paddingRight: '40px', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px' }}
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
                 placeholder="请再次输入密码"
@@ -151,11 +160,20 @@ const RegisterPage: React.FC = () => {
                   background: 'none',
                   border: 'none',
                   cursor: 'pointer',
-                  color: 'var(--primary-color)',
-                  fontSize: '14px',
+                  padding: '4px',
                 }}
               >
-                {showConfirmPassword ? '隐藏' : '显示'}
+                {showConfirmPassword ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                )}
               </button>
             </div>
           </div>
