@@ -20,7 +20,9 @@ jobs:
         run: cd workers && npm ci
 
       - name: Deploy to Cloudflare Workers
-        run: cd workers && npx wrangler deploy
+        run: |
+          cd workers
+          npx wrangler deploy --verbose 2>&1
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -48,5 +50,5 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           projectName: bitbot
-          directory: frontend/dist
+          directory: ./frontend/dist
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
