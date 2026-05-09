@@ -21,6 +21,8 @@ jobs:
 
       - name: Deploy to Cloudflare Workers
         run: |
+          export CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN"
+          export CLOUDFLARE_ACCOUNT_ID="$CLOUDFLARE_ACCOUNT_ID"
           cd workers
           ./node_modules/.bin/wrangler deploy 2>&1
         env:
