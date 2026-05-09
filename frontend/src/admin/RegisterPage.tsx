@@ -73,6 +73,7 @@ const RegisterPage: React.FC = () => {
             <input
               type="text"
               className="form-input"
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px' }}
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="请输入姓名"
@@ -85,6 +86,7 @@ const RegisterPage: React.FC = () => {
             <input
               type="text"
               className="form-input"
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px' }}
               value={username}
               onChange={e => setUsername(e.target.value)}
               placeholder="请输入用户名"
@@ -97,6 +99,7 @@ const RegisterPage: React.FC = () => {
             <input
               type="password"
               className="form-input"
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px' }}
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="请输入密码（至少6位）"
@@ -109,6 +112,7 @@ const RegisterPage: React.FC = () => {
             <input
               type="password"
               className="form-input"
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px' }}
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
               placeholder="请再次输入密码"

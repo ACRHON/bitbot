@@ -87,10 +87,16 @@ const LoginPage: React.FC = () => {
             type="submit"
             className="btn btn-primary"
             disabled={loading}
-            style={{ width: '100%', padding: '12px' }}
+            style={{ width: '100%', padding: '12px', marginTop: '8px' }}
           >
             {loading ? '登录中...' : '登录'}
           </button>
+
+          <div style={{ textAlign: 'center', marginTop: '16px' }}>
+            <a href="/admin/register" style={{ color: 'var(--primary-color)', fontSize: '14px', textDecoration: 'none' }}>
+              没有账号？去注册
+            </a>
+          </div>
         </form>
       </div>
     </div>
