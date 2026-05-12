@@ -10,6 +10,7 @@ interface Institution {
   id: string;
   name: string;
   feishu_app_id: string;
+  feishu_app_secret?: string | null;
   feishu_verification_token?: string | null;
   feishu_encrypt_key?: string | null;
   status: string;
@@ -47,6 +48,7 @@ const InstitutionsPage: React.FC = () => {
   const TOTAL_STEPS = 3;
   const [validating, setValidating] = useState(false);
   const [activationCodeInfo, setActivationCodeInfo] = useState<{ duration_days: number; expires_at: number } | null>(null);
+  const [showSecret, setShowSecret] = useState(false);
 
   // Validation for each step
   const canProceedFromStep1 = async () => {
@@ -209,12 +211,13 @@ const InstitutionsPage: React.FC = () => {
     setFormData({
       name: inst.name,
       feishu_app_id: inst.feishu_app_id || '',
-      feishu_app_secret: '',
+      feishu_app_secret: inst.feishu_app_secret || '',
       feishu_verification_token: inst.feishu_verification_token || '',
       feishu_encrypt_key: inst.feishu_encrypt_key || '',
       bitable_base_id: inst.bitable_base_id || '',
       activation_code: '',
     });
+    setShowSecret(false); // Hide secret by default when editing
     setCurrentStep(1);
     setShowModal(true);
   };
@@ -462,15 +465,33 @@ const InstitutionsPage: React.FC = () => {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">飞书 App Secret *</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.feishu_app_secret}
-                      onChange={e => setFormData({ ...formData, feishu_app_secret: e.target.value })}
-                      placeholder={editing ? '不修改请留空' : '请输入 App Secret'}
-                      required={!editing}
-                    />
+                    <label className="form-label">飞书 App Secret {editing && <span style={{ fontWeight: 400, fontSize: '12px' }}>(留空则不修改)</span>}</label>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type={showSecret ? 'text' : 'password'}
+                        className="form-input"
+                        value={formData.feishu_app_secret}
+                        onChange={e => setFormData({ ...formData, feishu_app_secret: e.target.value })}
+                        placeholder={editing ? '不修改请留空' : '请输入 App Secret'}
+                        required={!editing}
+                        style={{ flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSecret(!showSecret)}
+                        style={{
+                          background: 'var(--bg-color)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '6px',
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                        }}
+                        title={showSecret ? '隐藏密码' : '显示密码'}
+                      >
+                        {showSecret ? '👁' : '👁‍🗨'}
+                      </button>
+                    </div>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Verification Token</label>
