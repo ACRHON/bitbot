@@ -109,6 +109,7 @@ async function create(env: Env, request: Request): Promise<Response> {
       feishu_encrypt_key,
       bitable_base_id,
       activation_code,
+      expires_at,
     } = body;
 
     if (!name || !feishu_app_id || !feishu_app_secret) {
@@ -121,8 +122,8 @@ async function create(env: Env, request: Request): Promise<Response> {
       return new Response('Institution with this app_id already exists', { status: 409 });
     }
 
-    // Process activation code if provided
-    let expiresAt = Date.now() + 365 * 24 * 60 * 60 * 1000; // Default 1 year
+    // Process activation code if provided, otherwise use expires_at directly
+    let expiresAt: number;
     if (activation_code) {
       const code = await getActivationCodeByCode(env, activation_code);
       if (!code) {
@@ -144,6 +145,12 @@ async function create(env: Env, request: Request): Promise<Response> {
         });
       }
       expiresAt = code.expires_at;
+    } else if (expires_at) {
+      // Use expires_at directly (for unlimited or manual setting)
+      expiresAt = expires_at;
+    } else {
+      // Default: 1 year
+      expiresAt = Date.now() + 365 * 24 * 60 * 60 * 1000;
     }
 
     const id = crypto.randomUUID();

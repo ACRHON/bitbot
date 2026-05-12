@@ -51,6 +51,7 @@ const InstitutionsPage: React.FC = () => {
   const [showSecret, setShowSecret] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState(365); // days
   const [generatingCode, setGeneratingCode] = useState(false);
+  const [isUnlimited, setIsUnlimited] = useState(false); // Permanent authorization
 
   // Validation for each step
   const canProceedFromStep1 = async () => {
@@ -58,11 +59,11 @@ const InstitutionsPage: React.FC = () => {
       alert('请输入机构名称');
       return false;
     }
-    if (!editing && !formData.activation_code.trim()) {
-      alert('请输入激活码');
+    if (!editing && !formData.activation_code.trim() && !isUnlimited) {
+      alert('请输入激活码或选择永久授权');
       return false;
     }
-    // Validate activation code via API (only for new institutions)
+    // Validate activation code via API (only for new institutions with code)
     if (!editing && formData.activation_code.trim()) {
       setValidating(true);
       try {
@@ -132,13 +133,20 @@ const InstitutionsPage: React.FC = () => {
         : `${API_BASE}/api/admin/institutions`;
       const method = editing ? 'PUT' : 'POST';
 
+      // Prepare submit data
+      const submitData: any = { ...formData };
+      if (!editing && isUnlimited) {
+        submitData.expires_at = new Date('2099-12-31').getTime();
+        submitData.activation_code = ''; // No activation code for unlimited
+      }
+
       const res = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(submitData),
       });
 
       if (res.ok) {
@@ -201,6 +209,7 @@ const InstitutionsPage: React.FC = () => {
 
   const handleGenerateActivationCode = async () => {
     setGeneratingCode(true);
+    setIsUnlimited(false); // Clear unlimited when generating code
     try {
       const res = await fetch(`${API_BASE}/api/admin/activation/generate`, {
         method: 'POST',
@@ -231,6 +240,22 @@ const InstitutionsPage: React.FC = () => {
     }
   };
 
+  const handleSetUnlimited = () => {
+    if (isUnlimited) {
+      // Disable unlimited mode
+      setIsUnlimited(false);
+      setActivationCodeInfo(null);
+    } else {
+      // Enable unlimited mode
+      setIsUnlimited(true);
+      setFormData({ ...formData, activation_code: '' });
+      setActivationCodeInfo({
+        duration_days: 99999,
+        expires_at: new Date('2099-12-31').getTime(),
+      });
+    }
+  };
+
   const copyWebhookUrl = (appId: string) => {
     const url = `${WEBHOOK_BASE}/${appId}`;
     navigator.clipboard.writeText(url).then(() => {
@@ -252,6 +277,8 @@ const InstitutionsPage: React.FC = () => {
       activation_code: '',
     });
     setShowSecret(false); // Hide secret by default when editing
+    setIsUnlimited(false);
+    setActivationCodeInfo(null);
     setCurrentStep(1);
     setShowModal(true);
   };
@@ -268,6 +295,7 @@ const InstitutionsPage: React.FC = () => {
     });
     setCurrentStep(1);
     setActivationCodeInfo(null);
+    setIsUnlimited(false);
   };
 
   const formatDate = (timestamp: number) => {
@@ -461,7 +489,7 @@ const InstitutionsPage: React.FC = () => {
                       </div>
                     ) : (
                       <div className="form-group">
-                        <label className="form-label">激活码 {formData.activation_code ? '' : '*'}</label>
+                        <label className="form-label">激活码 {formData.activation_code || isUnlimited ? '' : '*'}</label>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                           <input
                             type="text"
@@ -470,15 +498,18 @@ const InstitutionsPage: React.FC = () => {
                             onChange={e => {
                               setFormData({ ...formData, activation_code: e.target.value });
                               setActivationCodeInfo(null);
+                              setIsUnlimited(false);
                             }}
                             placeholder="输入激活码或快速生成"
-                            required={!formData.activation_code}
-                            style={{ flex: 1 }}
+                            disabled={isUnlimited}
+                            required={!formData.activation_code && !isUnlimited}
+                            style={{ flex: 1, opacity: isUnlimited ? 0.5 : 1 }}
                           />
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             <select
                               value={selectedDuration}
                               onChange={e => setSelectedDuration(Number(e.target.value))}
+                              disabled={isUnlimited}
                               style={{
                                 padding: '8px 12px',
                                 borderRadius: '6px',
@@ -486,6 +517,7 @@ const InstitutionsPage: React.FC = () => {
                                 background: 'var(--bg-color)',
                                 fontSize: '12px',
                                 minWidth: '100px',
+                                opacity: isUnlimited ? 0.5 : 1,
                               }}
                             >
                               <option value={30}>1个月</option>
@@ -497,7 +529,7 @@ const InstitutionsPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={handleGenerateActivationCode}
-                              disabled={generatingCode}
+                              disabled={generatingCode || isUnlimited}
                               style={{
                                 padding: '8px 12px',
                                 borderRadius: '6px',
@@ -505,8 +537,8 @@ const InstitutionsPage: React.FC = () => {
                                 background: 'var(--primary-color)',
                                 color: '#fff',
                                 fontSize: '12px',
-                                cursor: generatingCode ? 'not-allowed' : 'pointer',
-                                opacity: generatingCode ? 0.6 : 1,
+                                cursor: (generatingCode || isUnlimited) ? 'not-allowed' : 'pointer',
+                                opacity: (generatingCode || isUnlimited) ? 0.6 : 1,
                                 whiteSpace: 'nowrap',
                               }}
                             >
@@ -516,9 +548,26 @@ const InstitutionsPage: React.FC = () => {
                         </div>
                         {activationCodeInfo && (
                           <div style={{ fontSize: '12px', color: 'var(--success-color)', marginTop: '4px' }}>
-                            ✓ 激活码有效，可开通 {activationCodeInfo.duration_days} 天（至 {formatDate(activationCodeInfo.expires_at)}）
+                            ✓ {isUnlimited ? '永久授权' : `激活码有效，可开通 ${activationCodeInfo.duration_days} 天`}（至 {formatDate(activationCodeInfo.expires_at)}）
                           </div>
                         )}
+                        {/* Unlimited option */}
+                        <div style={{ marginTop: '12px', padding: '10px', background: isUnlimited ? 'rgba(76, 175, 80, 0.1)' : 'var(--bg-color)', borderRadius: '8px', border: isUnlimited ? '1px solid var(--success-color)' : '1px solid transparent' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={isUnlimited}
+                              onChange={handleSetUnlimited}
+                              style={{ width: '16px', height: '16px' }}
+                            />
+                            <span style={{ fontWeight: 500, color: isUnlimited ? 'var(--success-color)' : 'inherit' }}>
+                              🌟 永久授权（超级管理员专属）
+                            </span>
+                          </label>
+                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginLeft: '24px', marginTop: '4px' }}>
+                            勾选后该校区服务永不到期，无需激活码
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
