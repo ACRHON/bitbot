@@ -354,6 +354,7 @@ const InstitutionsPage: React.FC = () => {
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '12px' }}>机构名称</th>
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '12px' }}>App ID</th>
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '12px' }}>Webhook</th>
+                <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '12px' }}>多维表格</th>
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '12px' }}>状态</th>
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '12px' }}>到期时间</th>
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '12px' }}>操作</th>
@@ -373,6 +374,13 @@ const InstitutionsPage: React.FC = () => {
                     >
                       📋 复制
                     </button>
+                  </td>
+                  <td style={{ padding: '12px 8px' }}>
+                    {inst.bitable_base_id ? (
+                      <span style={{ color: 'var(--success-color)', fontSize: '16px' }} title={`已配置: ${inst.bitable_base_id}`}>📊</span>
+                    ) : (
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '16px' }} title="未配置多维表格">⚪</span>
+                    )}
                   </td>
                   <td style={{ padding: '12px 8px' }}>
                     <span className={`badge ${inst.status === 'active' ? 'badge-success' : inst.status === 'expired' ? 'badge-danger' : 'badge-warning'}`}>
