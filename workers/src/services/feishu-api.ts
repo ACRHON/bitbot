@@ -284,6 +284,41 @@ export function verifySignature(
 }
 
 /**
+ * Send text message
+ */
+export async function sendTextMessage(
+  config: FeishuConfig,
+  receiveId: string,
+  receiveIdType: 'chat_id' | 'open_id',
+  text: string
+): Promise<string> {
+  const token = await getTenantAccessToken(config);
+
+  const response = await fetch('https://open.feishu.cn/open-apis/im/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      receive_id: receiveId,
+      receive_id_type: receiveIdType,
+      msg_type: 'text',
+      content: JSON.stringify({
+        text: text,
+      }),
+    }),
+  });
+
+  const data: ApiResponse = await response.json();
+  if (data.code !== 0) {
+    throw new Error(`Failed to send message: ${data.msg}`);
+  }
+
+  return data.data?.message_id || '';
+}
+
+/**
  * Get user info by open_id
  */
 export async function getUserInfo(

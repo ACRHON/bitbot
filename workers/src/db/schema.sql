@@ -117,4 +117,3 @@ CREATE INDEX IF NOT EXISTS idx_attendance_sessions_record ON attendance_sessions
 CREATE INDEX IF NOT EXISTS idx_activation_codes_code ON activation_codes(code);
 CREATE INDEX IF NOT EXISTS idx_activation_codes_batch ON activation_codes(batch_name);
 CREATE INDEX IF NOT EXISTS idx_activation_codes_used ON activation_codes(used);
-CREATE INDEX IF NOT EXISTS idx_activation_codes_used ON activation_codes(used);

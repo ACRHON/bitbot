@@ -12,7 +12,7 @@ import {
   createAttendanceSession,
 } from '../db/queries';
 import { FeishuConfig } from '../services/feishu-api';
-import { sendAttendanceCard, getUserInfo } from '../services/feishu-api';
+import { sendAttendanceCard, getUserInfo, sendTextMessage } from '../services/feishu-api';
 import * as bitable from '../services/bitable';
 
 /**
@@ -406,12 +406,98 @@ async function handleMessageReceive(
   // Process commands
   const text = messageText.trim().toLowerCase();
 
-  // Example commands
+  // Handle 今日课表 command
   if (text.includes('@机器人') || text.includes('今日课表')) {
-    // TODO: Return today's schedule
+    await handleTodaySchedule(env, institution, data);
   }
 
   return new Response('OK');
+}
+
+async function handleTodaySchedule(
+  env: Env,
+  institution: any,
+  data: any
+): Promise<void> {
+  const chatId = data?.event?.message?.chat_id;
+  const senderOpenId = data?.event?.sender?.sender_id?.open_id;
+
+  if (!institution?.bitable_base_id || !institution?.bitable_schedule_table_id) {
+    // Send error message if bitable not configured
+    if (chatId) {
+      const feishuConfig = {
+        appId: institution.feishu_app_id,
+        appSecret: institution.feishu_app_secret,
+      };
+      await sendTextMessage(feishuConfig, chatId, 'chat_id', '抱歉，多维表格配置不完整，请联系管理员');
+    }
+    return;
+  }
+
+  const bitableConfig = {
+    appId: institution.feishu_app_id,
+    appSecret: institution.feishu_app_secret,
+    baseId: institution.bitable_base_id,
+  };
+
+  // Get today's date range
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const startOfDay = today.getTime();
+  const endOfDay = startOfDay + 24 * 60 * 60 * 1000;
+
+  try {
+    // Query today's schedule from bitable
+    const scheduleRecords = await bitable.getScheduleByTime(
+      bitableConfig,
+      institution.bitable_schedule_table_id,
+      '上课时间',
+      startOfDay,
+      endOfDay
+    );
+
+    let scheduleText = '';
+    if (scheduleRecords.length === 0) {
+      scheduleText = '今日没有课程安排';
+    } else {
+      // Format schedule
+      const dateStr = today.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' });
+      scheduleText = `📅 ${dateStr} 课表\n\n`;
+
+      for (const record of scheduleRecords) {
+        const fields = record.fields;
+        const courseName = fields['课程'] || '';
+        const className = fields['班级'] || '';
+        const teacherName = fields['上课老师'] || '';
+        const scheduledTime = fields['上课时间'];
+
+        if (scheduledTime) {
+          const date = new Date(scheduledTime);
+          const timeStr = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+          scheduleText += `🕐 ${timeStr} | ${courseName} - ${className}\n`;
+          scheduleText += `   老师: ${teacherName}\n\n`;
+        }
+      }
+    }
+
+    // Send schedule to chat
+    if (chatId) {
+      const feishuConfig = {
+        appId: institution.feishu_app_id,
+        appSecret: institution.feishu_app_secret,
+      };
+      await sendTextMessage(feishuConfig, chatId, 'chat_id', scheduleText);
+    }
+  } catch (error) {
+    console.error('Failed to get today schedule:', error);
+    if (chatId) {
+      const feishuConfig = {
+        appId: institution.feishu_app_id,
+        appSecret: institution.feishu_app_secret,
+      };
+      await sendTextMessage(feishuConfig, chatId, 'chat_id', '获取课表失败，请稍后重试');
+    }
+  }
 }
 
 /**
