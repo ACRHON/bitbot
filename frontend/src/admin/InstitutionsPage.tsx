@@ -4,7 +4,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
-import { validateActivationCode } from '../lib/api';
+import { validateActivationCode, testBitableConnection } from '../lib/api';
 
 interface Institution {
   id: string;
@@ -52,6 +52,11 @@ const InstitutionsPage: React.FC = () => {
   const [selectedDuration, setSelectedDuration] = useState(365); // days
   const [generatingCode, setGeneratingCode] = useState(false);
   const [isUnlimited, setIsUnlimited] = useState(false); // Permanent authorization
+
+  // Bitable connection test state
+  const [bitableTestStatus, setBitableTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [bitableTestMessage, setBitableTestMessage] = useState('');
+  const [bitableTestPassed, setBitableTestPassed] = useState(false);
 
   // Validation for each step
   const canProceedFromStep1 = async () => {
@@ -127,6 +132,13 @@ const InstitutionsPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // If bitable URL is provided but test hasn't passed, block submission
+    if (formData.bitable_base_id.trim() && !bitableTestPassed) {
+      alert('请先点击"测试连接"按钮，确保多维表格连接正常后再保存');
+      return;
+    }
+
     try {
       const url = editing
         ? `${API_BASE}/api/admin/institutions/${editing.id}`
@@ -279,6 +291,9 @@ const InstitutionsPage: React.FC = () => {
     setShowSecret(false); // Hide secret by default when editing
     setIsUnlimited(false);
     setActivationCodeInfo(null);
+    setBitableTestStatus('idle');
+    setBitableTestPassed(inst.bitable_base_id ? true : false); // Already saved, so consider it tested if has value
+    setBitableTestMessage('');
     setCurrentStep(1);
     setShowModal(true);
   };
@@ -296,6 +311,9 @@ const InstitutionsPage: React.FC = () => {
     setCurrentStep(1);
     setActivationCodeInfo(null);
     setIsUnlimited(false);
+    setBitableTestStatus('idle');
+    setBitableTestPassed(false);
+    setBitableTestMessage('');
   };
 
   const formatDate = (timestamp: number) => {
@@ -647,14 +665,103 @@ const InstitutionsPage: React.FC = () => {
                     此步骤可跳过，稍后可在编辑中补充
                   </div>
                   <div className="form-group">
-                    <label className="form-label">多维表格 Base ID</label>
+                    <label className="form-label">多维表格链接</label>
                     <input
                       type="text"
                       className="form-input"
                       value={formData.bitable_base_id}
-                      onChange={e => setFormData({ ...formData, bitable_base_id: e.target.value })}
-                      placeholder="例如：Bxxx"
+                      onChange={e => {
+                        setFormData({ ...formData, bitable_base_id: e.target.value });
+                        setBitableTestStatus('idle');
+                        setBitableTestPassed(false);
+                      }}
+                      placeholder="粘贴飞书多维表格链接（支持 wiki 或 base 格式）"
                     />
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                      支持格式：/base/BcBSbPuA1a8s9rsfgoTcRMRTnSe 或 /wiki/P8QHw31S5iMDLfkIRfMcq3Dynnb
+                    </div>
+                  </div>
+
+                  {/* Test Connection Button */}
+                  <div className="form-group">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!formData.bitable_base_id.trim()) {
+                          setBitableTestStatus('error');
+                          setBitableTestMessage('请先输入多维表格链接');
+                          return;
+                        }
+                        if (!formData.feishu_app_id || !formData.feishu_app_secret) {
+                          setBitableTestStatus('error');
+                          setBitableTestMessage('请先在步骤2中填写飞书 App ID 和 Secret');
+                          return;
+                        }
+                        setBitableTestStatus('testing');
+                        setBitableTestMessage('正在测试连接...');
+                        try {
+                          const result = await testBitableConnection(
+                            formData.feishu_app_id,
+                            formData.feishu_app_secret,
+                            formData.bitable_base_id
+                          );
+                          if (result.success) {
+                            setBitableTestStatus('success');
+                            setBitableTestMessage(result.message || `连接成功，找到 ${result.tables_count} 个数据表`);
+                            setBitableTestPassed(true);
+                          } else {
+                            setBitableTestStatus('error');
+                            setBitableTestMessage(result.error || '连接失败');
+                            setBitableTestPassed(false);
+                          }
+                        } catch (err) {
+                          setBitableTestStatus('error');
+                          setBitableTestMessage('测试请求失败，请检查网络');
+                          setBitableTestPassed(false);
+                        }
+                      }}
+                      disabled={bitableTestStatus === 'testing'}
+                      style={{
+                        padding: '10px 16px',
+                        borderRadius: '6px',
+                        border: bitableTestStatus === 'success' ? '1px solid var(--success-color)' : '1px solid var(--border-color)',
+                        background: bitableTestStatus === 'success' ? 'rgba(76, 175, 80, 0.1)' : 'var(--bg-color)',
+                        color: bitableTestStatus === 'success' ? 'var(--success-color)' : 'var(--text-color)',
+                        fontSize: '14px',
+                        cursor: bitableTestStatus === 'testing' ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                      }}
+                    >
+                      {bitableTestStatus === 'testing' ? (
+                        '🔄 测试中...'
+                      ) : bitableTestStatus === 'success' ? (
+                        '✓ 已连接'
+                      ) : bitableTestStatus === 'error' ? (
+                        '✗ 重试测试'
+                      ) : (
+                        '🔗 测试连接'
+                      )}
+                    </button>
+
+                    {/* Test Result Feedback */}
+                    {bitableTestMessage && (
+                      <div style={{
+                        marginTop: '8px',
+                        padding: '10px',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        background: bitableTestStatus === 'success' ? 'rgba(76, 175, 80, 0.1)' :
+                                   bitableTestStatus === 'error' ? 'rgba(244, 67, 54, 0.1)' : 'var(--bg-color)',
+                        color: bitableTestStatus === 'success' ? 'var(--success-color)' :
+                               bitableTestStatus === 'error' ? '#f44336' : 'var(--text-secondary)',
+                        border: bitableTestStatus === 'success' ? '1px solid var(--success-color)' :
+                                bitableTestStatus === 'error' ? '1px solid #f44336' : '1px solid transparent',
+                      }}>
+                        {bitableTestMessage}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

@@ -3,6 +3,7 @@
  */
 
 import { Env, createActivationCode, listActivationCodes, listBatches, getActivationCodeById, getActivationCodeByCode, deleteActivationCode, deleteActivationCodesByBatch, deleteActivationCodesByBatchAll, revokeActivationCode, getAdminUserById } from '../db/queries';
+import * as bitable from '../services/bitable';
 
 export async function handleAdminActivationRequest(
   env: Env,
@@ -34,6 +35,11 @@ export async function handleAdminActivationRequest(
   if (request.method === 'GET' && path === '/api/admin/activation/validate') {
     const code = url.searchParams.get('code');
     return await validateCode(env, code);
+  }
+
+  // Route: POST /api/admin/activation/test-bitable - test bitable connectivity
+  if (request.method === 'POST' && path === '/api/admin/activation/test-bitable') {
+    return await testBitableConnection(env, request);
   }
 
   // Route: PUT /api/admin/activation/codes/:id/revoke
@@ -220,6 +226,82 @@ async function validateCode(env: Env, codeStr: string | null): Promise<Response>
   } catch (error) {
     console.error('Validate activation code error:', error);
     return new Response(JSON.stringify({ valid: false, error: '验证失败' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+async function testBitableConnection(env: Env, request: Request): Promise<Response> {
+  try {
+    const body = await request.json();
+    const { app_id, app_secret, base_url, table_id } = body;
+
+    if (!app_id || !app_secret || !base_url) {
+      return new Response(JSON.stringify({ success: false, error: '缺少必要参数' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const bitableConfig = {
+      appId: app_id,
+      appSecret: app_secret,
+      baseId: '',
+    };
+
+    // Resolve the base URL to get app_token
+    let resolvedBaseId: string;
+    try {
+      resolvedBaseId = await bitable.resolveBitableAppToken(bitableConfig, base_url);
+    } catch (e) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: `URL解析失败: ${(e as Error).message}`
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Test connectivity by fetching tables
+    const configWithBase = { ...bitableConfig, baseId: resolvedBaseId };
+    try {
+      const tables = await bitable.getTables(configWithBase);
+
+      // If table_id is provided, verify that table exists
+      if (table_id) {
+        const tableExists = tables.some((t: any) => t.table_id === table_id);
+        if (!tableExists) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: `表格ID ${table_id} 不存在`
+          }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        base_id: resolvedBaseId,
+        tables_count: tables.length,
+        message: `连接成功，找到 ${tables.length} 个数据表`
+      }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (e) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: `连接失败: ${(e as Error).message}`
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+  } catch (e) {
+    return new Response(JSON.stringify({ success: false, error: `请求失败: ${(e as Error).message}` }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

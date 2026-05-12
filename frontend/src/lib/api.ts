@@ -560,6 +560,35 @@ export async function validateActivationCode(code: string): Promise<ActivationCo
   return res.json();
 }
 
+// Bitable Connection Test
+export interface BitableTestResult {
+  success: boolean;
+  base_id?: string;
+  tables_count?: number;
+  message?: string;
+  error?: string;
+}
+
+export async function testBitableConnection(
+  appId: string,
+  appSecret: string,
+  baseUrl: string
+): Promise<BitableTestResult> {
+  const res = await fetch(`${API_BASE}/api/admin/activation/test-bitable`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('admin_token')}`,
+    },
+    body: JSON.stringify({
+      app_id: appId,
+      app_secret: appSecret,
+      base_url: baseUrl,
+    }),
+  });
+  return res.json();
+}
+
 // Campus Management APIs
 export interface CampusData {
   students: Student[];

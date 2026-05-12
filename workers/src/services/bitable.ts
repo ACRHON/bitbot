@@ -199,6 +199,16 @@ export async function batchCreateRecords(
 }
 
 /**
+ * Get all tables in a bitable app
+ */
+export async function getTables(
+  config: BitableConfig
+): Promise<Array<{ table_id: string; name: string }>> {
+  const data = await bitableRequest(config, 'GET', '/tables');
+  return data?.items || [];
+}
+
+/**
  * Get all students from student table
  */
 export async function getStudents(
