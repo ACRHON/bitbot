@@ -69,6 +69,15 @@ body {
   color: #fff;
 }
 
+.btn-warning {
+  background: var(--warning-color);
+  color: #fff;
+}
+
+.btn-warning:hover {
+  background: #e07b00;
+}
+
 .btn-danger {
   background: var(--danger-color);
   color: #fff;

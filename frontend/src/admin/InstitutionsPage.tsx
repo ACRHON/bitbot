@@ -22,6 +22,7 @@ interface Institution {
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
+const WEBHOOK_BASE = 'https://fastbot.de5.net/webhook/feishu';
 
 const InstitutionsPage: React.FC = () => {
   const { token } = useAuth();
@@ -167,6 +168,42 @@ const InstitutionsPage: React.FC = () => {
     }
   };
 
+  const handleToggleStatus = async (inst: Institution) => {
+    const newStatus = inst.status === 'active' ? 'suspended' : 'active';
+    const actionText = newStatus === 'suspended' ? '冻结' : '启动';
+
+    if (!confirm(`确定要${actionText}该校区「${inst.name}」吗？`)) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/institutions/${inst.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        fetchInstitutions();
+      } else {
+        const data = await res.json();
+        alert(data.error || `${actionText}失败`);
+      }
+    } catch (err) {
+      console.error('Failed to toggle status:', err);
+      alert(`${actionText}失败`);
+    }
+  };
+
+  const copyWebhookUrl = (appId: string) => {
+    const url = `${WEBHOOK_BASE}/${appId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      alert('Webhook 地址已复制到剪贴板');
+    }).catch(() => {
+      prompt('请复制以下 Webhook 地址：', url);
+    });
+  };
+
   const handleEdit = (inst: Institution) => {
     setEditing(inst);
     setFormData({
@@ -233,6 +270,7 @@ const InstitutionsPage: React.FC = () => {
               <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '12px' }}>机构名称</th>
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '12px' }}>App ID</th>
+                <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '12px' }}>Webhook</th>
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '12px' }}>状态</th>
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '12px' }}>到期时间</th>
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '12px' }}>操作</th>
@@ -244,6 +282,16 @@ const InstitutionsPage: React.FC = () => {
                   <td style={{ padding: '12px 8px', fontWeight: 500 }}>{inst.name}</td>
                   <td style={{ padding: '12px 8px', fontSize: '12px', color: 'var(--text-secondary)' }}>{inst.feishu_app_id}</td>
                   <td style={{ padding: '12px 8px' }}>
+                    <button
+                      className="btn btn-secondary"
+                      style={{ padding: '4px 8px', fontSize: '11px' }}
+                      onClick={() => copyWebhookUrl(inst.feishu_app_id)}
+                      title="复制 Webhook 地址"
+                    >
+                      📋 复制
+                    </button>
+                  </td>
+                  <td style={{ padding: '12px 8px' }}>
                     <span className={`badge ${inst.status === 'active' ? 'badge-success' : inst.status === 'expired' ? 'badge-danger' : 'badge-warning'}`}>
                       {inst.status === 'active' ? '运行中' : inst.status === 'expired' ? '已到期' : '已停用'}
                     </span>
@@ -253,6 +301,13 @@ const InstitutionsPage: React.FC = () => {
                     {isExpiringSoon(inst.expires_at) && ' ⚠️'}
                   </td>
                   <td style={{ padding: '12px 8px' }}>
+                    <button
+                      className={`btn ${inst.status === 'active' ? 'btn-warning' : 'btn-success'}`}
+                      style={{ padding: '4px 8px', marginRight: '4px', fontSize: '11px' }}
+                      onClick={() => handleToggleStatus(inst)}
+                    >
+                      {inst.status === 'active' ? '⏸ 冻结' : '▶ 启动'}
+                    </button>
                     <button className="btn btn-secondary" style={{ padding: '4px 8px', marginRight: '4px' }} onClick={() => handleEdit(inst)}>
                       编辑
                     </button>
