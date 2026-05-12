@@ -230,11 +230,11 @@ const InstitutionsPage: React.FC = () => {
         }
       } else {
         const data = await res.json();
-        alert(data.error || '生成激活码失败');
+        alert(`生成激活码失败: ${data.error || res.status}`);
       }
     } catch (err) {
       console.error('Failed to generate activation code:', err);
-      alert('生成激活码失败');
+      alert(`生成激活码失败: ${(err as Error).message || '网络错误'}`);
     } finally {
       setGeneratingCode(false);
     }
