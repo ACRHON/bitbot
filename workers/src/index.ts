@@ -129,8 +129,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
  * Cron trigger handler
  * This is called by Cloudflare Cron based on wrangler.toml configuration
  */
-async function handleScheduled(event: ScheduledEvent): Promise<void> {
-  const env = (event as any).env as Env;
+async function handleScheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
   await handleCronTrigger(env);
 }
 
