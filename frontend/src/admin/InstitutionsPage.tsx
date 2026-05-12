@@ -377,9 +377,30 @@ const InstitutionsPage: React.FC = () => {
                   </td>
                   <td style={{ padding: '12px 8px' }}>
                     {inst.bitable_base_id ? (
-                      <span style={{ color: 'var(--success-color)', fontSize: '16px' }} title={`已配置: ${inst.bitable_base_id}`}>📊</span>
+                      <a
+                        href={`https://bitable.feishu.cn/base/${inst.bitable_base_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: 'var(--success-color)',
+                          textDecoration: 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '12px',
+                        }}
+                        title={`打开多维表格: ${inst.bitable_base_id}`}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 3h18v18H3z"/>
+                          <path d="M3 9h18"/>
+                          <path d="M3 15h18"/>
+                          <path d="M9 3v18"/>
+                        </svg>
+                        已配置
+                      </a>
                     ) : (
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '16px' }} title="未配置多维表格">⚪</span>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>—</span>
                     )}
                   </td>
                   <td style={{ padding: '12px 8px' }}>
