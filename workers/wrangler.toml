@@ -1,6 +1,7 @@
 name = "bitbot"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
+account_id = "cc2427c27991a20591e6156a179fb49c"
 
 [site]
 bucket = "../frontend/dist"
@@ -13,8 +14,12 @@ database_id = "d57c151b-dc86-47bd-bda8-93555d4e6cac"
 [triggers]
 crons = ["* * * * *"]
 
+routes = [
+  { pattern = "fastbot.de5.net", zone_name = "fastbot.de5.net" }
+]
+
 [vars]
-ENV = "development"
+ENV = "production"
 
 # Local development settings
 [dev]
