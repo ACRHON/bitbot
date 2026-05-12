@@ -437,8 +437,20 @@ async function handleTodaySchedule(
   const bitableConfig = {
     appId: institution.feishu_app_id,
     appSecret: institution.feishu_app_secret,
-    baseId: institution.bitable_base_id,
+    baseId: institution.bitable_base_id || '',
   };
+
+  // Resolve bitable app_token if it's a wiki URL
+  let resolvedBaseId = bitableConfig.baseId;
+  if (resolvedBaseId) {
+    try {
+      resolvedBaseId = await bitable.resolveBitableAppToken(bitableConfig, resolvedBaseId);
+    } catch (e) {
+      console.log('Failed to resolve bitable app_token from wiki URL:', e);
+    }
+  }
+
+  const finalBitableConfig = { ...bitableConfig, baseId: resolvedBaseId };
 
   // Get today's date range
   const today = new Date();
@@ -449,7 +461,7 @@ async function handleTodaySchedule(
   try {
     // Query today's schedule from bitable
     const scheduleRecords = await bitable.getScheduleByTime(
-      bitableConfig,
+      finalBitableConfig,
       institution.bitable_schedule_table_id,
       '上课时间',
       startOfDay,

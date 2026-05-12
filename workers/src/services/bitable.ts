@@ -14,6 +14,72 @@ interface ApiResponse {
   data?: any;
 }
 
+/**
+ * Resolve app_token from a wiki URL for bitable.
+ * If the URL is a direct bitable URL (/base/xxx), returns the app_token directly.
+ * If the URL is a wiki URL (/wiki/xxx), calls the wiki API to get the bitable app_token.
+ */
+export async function resolveBitableAppToken(
+  config: BitableConfig,
+  urlOrToken: string
+): Promise<string> {
+  // If it's already a direct base URL or app_token (starts with B)
+  if (urlOrToken.startsWith('B') && urlOrToken.length > 10) {
+    return urlOrToken;
+  }
+
+  // If it's a /base/ URL, extract app_token
+  const baseMatch = urlOrToken.match(/\/base\/([^\/\?]+)/);
+  if (baseMatch) {
+    return baseMatch[1];
+  }
+
+  // If it's a /wiki/ URL, need to call wiki API
+  const wikiMatch = urlOrToken.match(/\/wiki\/([^\/\?]+)/);
+  if (wikiMatch) {
+    const nodeToken = wikiMatch[1];
+    return await getBitableAppTokenFromWiki(config, nodeToken);
+  }
+
+  // If it's just a wiki node token without URL pattern
+  if (wikiMatch === null && urlOrToken.length > 10 && !urlOrToken.startsWith('B')) {
+    return await getBitableAppTokenFromWiki(config, urlOrToken);
+  }
+
+  throw new Error(`Invalid bitable URL or token: ${urlOrToken}`);
+}
+
+/**
+ * Get bitable app_token from wiki node token
+ */
+async function getBitableAppTokenFromWiki(
+  config: BitableConfig,
+  nodeToken: string
+): Promise<string> {
+  const token = await getToken(config);
+
+  // Try to get wiki node info
+  // Note: This requires the wiki API scope
+  const response = await fetch(
+    `https://open.feishu.cn/open-apis/wiki/v2/spaces/get_node?token=${encodeURIComponent(nodeToken)}`,
+    {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    }
+  );
+
+  const data: ApiResponse = await response.json();
+  if (data.code === 0 && data.data?.node?.obj_type === 'bitable') {
+    return data.data.node.obj_token;
+  }
+
+  // If wiki API fails, try alternative approach
+  // Sometimes the wiki node token itself is the app_token for bitable
+  // This is a fallback
+  throw new Error(`Failed to resolve bitable app_token from wiki node: ${nodeToken}`);
+}
+
 async function getToken(config: BitableConfig): Promise<string> {
   const response = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
     method: 'POST',

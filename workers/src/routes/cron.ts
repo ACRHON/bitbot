@@ -86,6 +86,18 @@ async function executeClassReminder(
     baseId: institution.bitable_base_id || '',
   };
 
+  // Resolve bitable app_token if it's a wiki URL
+  let resolvedBaseId = bitableConfig.baseId;
+  if (resolvedBaseId) {
+    try {
+      resolvedBaseId = await bitable.resolveBitableAppToken(bitableConfig, resolvedBaseId);
+    } catch (e) {
+      console.log('Failed to resolve bitable app_token from wiki URL, using original:', e);
+    }
+  }
+
+  const finalBitableConfig = { ...bitableConfig, baseId: resolvedBaseId };
+
   const scheduleTableId = institution.bitable_schedule_table_id;
   if (!scheduleTableId) {
     console.log('Schedule table not configured');
@@ -99,7 +111,7 @@ async function executeClassReminder(
 
   // Get upcoming classes
   const scheduleRecords = await bitable.getScheduleByTime(
-    bitableConfig,
+    finalBitableConfig,
     scheduleTableId,
     '上课时间', // time field name
     startTime,
