@@ -61,7 +61,7 @@ async function getBitableAppTokenFromWiki(
   // Try to get wiki node info
   // Note: This requires the wiki API scope
   const response = await fetch(
-    `https://open.feishu.cn/open-apis/wiki/v2/spaces/get_node?token=${encodeURIComponent(nodeToken)}`,
+    `https://open.feishu.cn/open-apis/wiki/v2/spaces/get_node?token=${encodeURIComponent(nodeToken)}&obj_type=bitable`,
     {
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -76,7 +76,24 @@ async function getBitableAppTokenFromWiki(
 
   // If wiki API fails, try alternative approach
   // Sometimes the wiki node token itself is the app_token for bitable
-  // This is a fallback
+  // This is a fallback - try using the node token directly as bitable app_token
+  try {
+    const response = await fetch(
+      `https://open.feishu.cn/open-apis/bitable/v1/apps/${nodeToken}/tables`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+    const respData: ApiResponse = await response.json();
+    if (respData.code === 0 && respData.data?.items) {
+      return nodeToken; // It's a valid bitable app_token
+    }
+  } catch {
+    // Ignore and continue to throw
+  }
+
   throw new Error(`Failed to resolve bitable app_token from wiki node: ${nodeToken}`);
 }
 
