@@ -49,6 +49,8 @@ const InstitutionsPage: React.FC = () => {
   const [validating, setValidating] = useState(false);
   const [activationCodeInfo, setActivationCodeInfo] = useState<{ duration_days: number; expires_at: number } | null>(null);
   const [showSecret, setShowSecret] = useState(false);
+  const [selectedDuration, setSelectedDuration] = useState(365); // days
+  const [generatingCode, setGeneratingCode] = useState(false);
 
   // Validation for each step
   const canProceedFromStep1 = async () => {
@@ -194,6 +196,38 @@ const InstitutionsPage: React.FC = () => {
     } catch (err) {
       console.error('Failed to toggle status:', err);
       alert(`${actionText}失败`);
+    }
+  };
+
+  const handleGenerateActivationCode = async () => {
+    setGeneratingCode(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/activation/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ count: 1, duration_days: selectedDuration }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.codes && data.codes.length > 0) {
+          setFormData({ ...formData, activation_code: data.codes[0].code });
+          setActivationCodeInfo({
+            duration_days: data.codes[0].duration_days,
+            expires_at: data.codes[0].expires_at,
+          });
+        }
+      } else {
+        const data = await res.json();
+        alert(data.error || '生成激活码失败');
+      }
+    } catch (err) {
+      console.error('Failed to generate activation code:', err);
+      alert('生成激活码失败');
+    } finally {
+      setGeneratingCode(false);
     }
   };
 
@@ -427,18 +461,59 @@ const InstitutionsPage: React.FC = () => {
                       </div>
                     ) : (
                       <div className="form-group">
-                        <label className="form-label">激活码 *</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          value={formData.activation_code}
-                          onChange={e => {
-                            setFormData({ ...formData, activation_code: e.target.value });
-                            setActivationCodeInfo(null);
-                          }}
-                          placeholder="输入激活码"
-                          required
-                        />
+                        <label className="form-label">激活码 {formData.activation_code ? '' : '*'}</label>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={formData.activation_code}
+                            onChange={e => {
+                              setFormData({ ...formData, activation_code: e.target.value });
+                              setActivationCodeInfo(null);
+                            }}
+                            placeholder="输入激活码或快速生成"
+                            required={!formData.activation_code}
+                            style={{ flex: 1 }}
+                          />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <select
+                              value={selectedDuration}
+                              onChange={e => setSelectedDuration(Number(e.target.value))}
+                              style={{
+                                padding: '8px 12px',
+                                borderRadius: '6px',
+                                border: '1px solid var(--border-color)',
+                                background: 'var(--bg-color)',
+                                fontSize: '12px',
+                                minWidth: '100px',
+                              }}
+                            >
+                              <option value={30}>1个月</option>
+                              <option value={90}>3个月</option>
+                              <option value={180}>6个月</option>
+                              <option value={365}>1年</option>
+                              <option value={730}>2年</option>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={handleGenerateActivationCode}
+                              disabled={generatingCode}
+                              style={{
+                                padding: '8px 12px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                background: 'var(--primary-color)',
+                                color: '#fff',
+                                fontSize: '12px',
+                                cursor: generatingCode ? 'not-allowed' : 'pointer',
+                                opacity: generatingCode ? 0.6 : 1,
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {generatingCode ? '生成中...' : '⚡ 快速生成'}
+                            </button>
+                          </div>
+                        </div>
                         {activationCodeInfo && (
                           <div style={{ fontSize: '12px', color: 'var(--success-color)', marginTop: '4px' }}>
                             ✓ 激活码有效，可开通 {activationCodeInfo.duration_days} 天（至 {formatDate(activationCodeInfo.expires_at)}）
