@@ -266,6 +266,298 @@ export async function sendAttendanceCard(
 }
 
 /**
+ * Student attendance status
+ */
+export interface StudentAttendance {
+  record_id: string;
+  name: string;
+  status?: 'pending' | 'signed' | 'leave' | 'absent';
+  sign_time?: number;
+}
+
+/**
+ * Send attendance sign-in card with student list and buttons
+ */
+export async function sendAttendanceSignCard(
+  config: FeishuConfig,
+  receiveId: string,
+  receiveIdType: 'chat_id' | 'open_id',
+  sessionId: string,
+  courseName: string,
+  className: string,
+  teacherName: string,
+  scheduledTime: string,
+  campusName: string,
+  students: StudentAttendance[]
+): Promise<{ cardId: string; messageId: string }> {
+  // Count statuses
+  const total = students.length;
+  const signed = students.filter(s => s.status === 'signed').length;
+  const leave = students.filter(s => s.status === 'leave').length;
+  const absent = students.filter(s => s.status === 'absent').length;
+  const pending = students.filter(s => s.status === 'pending' || !s.status).length;
+
+  // Build student rows with buttons
+  const studentElements: any[] = [];
+
+  for (const student of students) {
+    // Student name row
+    studentElements.push({
+      tag: 'div',
+      text: {
+        tag: 'plain_text',
+        content: student.name,
+      },
+      element_id: `student_name_${student.record_id}`,
+    });
+
+    // Action buttons row
+    const isSigned = student.status === 'signed';
+    const isLeave = student.status === 'leave';
+
+    studentElements.push({
+      tag: 'action',
+      actions: [
+        {
+          tag: 'button',
+          text: {
+            tag: 'plain_text',
+            content: isSigned ? `✅ 已到 ${student.sign_time ? new Date(student.sign_time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : ''}` : '✅ 签到',
+          },
+          type: isSigned ? 'primary' : 'default',
+          element_id: `sign_btn_${student.record_id}`,
+          disabled: isSigned || isLeave,
+          behaviors: [
+            {
+              type: 'callback',
+              value: {
+                action: 'student_sign_in',
+                session_id: sessionId,
+                student_id: student.record_id,
+                student_name: student.name,
+              },
+            },
+          ],
+        },
+        {
+          tag: 'button',
+          text: {
+            tag: 'plain_text',
+            content: isLeave ? '📝 请假' : '📝 请假',
+          },
+          type: isLeave ? 'primary' : 'default',
+          element_id: `leave_btn_${student.record_id}`,
+          disabled: isSigned || isLeave,
+          behaviors: [
+            {
+              type: 'callback',
+              value: {
+                action: 'student_leave',
+                session_id: sessionId,
+                student_id: student.record_id,
+                student_name: student.name,
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    // Add divider between students (except last)
+    if (students.indexOf(student) < students.length - 1) {
+      studentElements.push({
+        tag: 'hr',
+      });
+    }
+  }
+
+  const cardData = {
+    body: {
+      elements: [
+        // Header: course info
+        {
+          tag: 'div',
+          text: {
+            tag: 'plain_text',
+            content: `📚 ${courseName} ${className ? `- ${className}` : ''}`,
+          },
+        },
+        {
+          tag: 'div',
+          text: {
+            tag: 'plain_text',
+            content: `📅 ${scheduledTime}  |  📍 ${campusName}  |  👨‍🏫 ${teacherName}`,
+          },
+        },
+        {
+          tag: 'hr',
+        },
+        // Summary row
+        {
+          tag: 'div',
+          text: {
+            tag: 'plain_text',
+            content: `应到: ${total}人  ✅已到:${signed}  📝请假:${leave}  ❌缺勤:${absent}`,
+          },
+        },
+        {
+          tag: 'hr',
+        },
+        // Student list
+        ...studentElements,
+        {
+          tag: 'hr',
+        },
+        // Hint
+        {
+          tag: 'div',
+          text: {
+            tag: 'plain_text',
+            content: '💡 先处理请假学员，剩余学员点击「一键签到」批量签到。未操作者下课将自动标记缺勤',
+          },
+        },
+        // Sign all button
+        {
+          tag: 'action',
+          actions: [
+            {
+              tag: 'button',
+              text: {
+                tag: 'plain_text',
+                content: '🚀 一键签到',
+              },
+              type: 'primary',
+              element_id: 'sign_all_btn',
+              behaviors: [
+                {
+                  type: 'callback',
+                  value: {
+                    action: 'sign_all',
+                    session_id: sessionId,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  };
+
+  const cardId = await createCardEntity(config, cardData);
+
+  const messageId = await sendCardMessage(
+    config,
+    receiveId,
+    receiveIdType,
+    { card_id: cardId }
+  );
+
+  return { cardId, messageId };
+}
+
+/**
+ * Send attendance summary card
+ */
+export async function sendAttendanceSummaryCard(
+  config: FeishuConfig,
+  receiveId: string,
+  receiveIdType: 'chat_id' | 'open_id',
+  sessionId: string,
+  courseName: string,
+  className: string,
+  campusName: string,
+  date: string,
+  startTime: string,
+  endTime: string,
+  signedCount: number,
+  leaveCount: number,
+  absentCount: number
+): Promise<{ cardId: string; messageId: string }> {
+  const cardData = {
+    body: {
+      elements: [
+        // Header
+        {
+          tag: 'div',
+          text: {
+            tag: 'plain_text',
+            content: `📊 签到汇总`,
+          },
+        },
+        {
+          tag: 'div',
+          text: {
+            tag: 'plain_text',
+            content: `${date} ${courseName} ${className ? `- ${className}` : ''}  ${campusName ? `· ${campusName}` : ''}`,
+          },
+        },
+        {
+          tag: 'hr',
+        },
+        // Stats
+        {
+          tag: 'div',
+          text: {
+            tag: 'plain_text',
+            content: `✅ 已到: ${signedCount}人  📝 请假: ${leaveCount}人  ❌ 缺勤: ${absentCount}人`,
+          },
+        },
+        {
+          tag: 'hr',
+        },
+        // Time info
+        {
+          tag: 'div',
+          text: {
+            tag: 'plain_text',
+            content: `⏰ 上课: ${startTime}  |  🏁 下课: ${endTime}`,
+          },
+        },
+        {
+          tag: 'hr',
+        },
+        // View detail button
+        {
+          tag: 'action',
+          actions: [
+            {
+              tag: 'button',
+              text: {
+                tag: 'plain_text',
+                content: '📋 查看详情',
+              },
+              type: 'primary',
+              element_id: 'view_detail_btn',
+              behaviors: [
+                {
+                  type: 'callback',
+                  value: {
+                    action: 'view_summary',
+                    session_id: sessionId,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  };
+
+  const cardId = await createCardEntity(config, cardData);
+
+  const messageId = await sendCardMessage(
+    config,
+    receiveId,
+    receiveIdType,
+    { card_id: cardId }
+  );
+
+  return { cardId, messageId };
+}
+
+/**
  * Verify webhook signature
  */
 export function verifySignature(

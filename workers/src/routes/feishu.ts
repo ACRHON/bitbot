@@ -11,8 +11,7 @@ import {
   updateAttendanceSession,
   createAttendanceSession,
 } from '../db/queries';
-import { FeishuConfig } from '../services/feishu-api';
-import { sendAttendanceCard, getUserInfo, sendTextMessage } from '../services/feishu-api';
+import { FeishuConfig, getUserInfo, sendTextMessage, sendAttendanceCard } from '../services/feishu-api';
 import * as bitable from '../services/bitable';
 
 /**
@@ -313,6 +312,8 @@ async function handleCardActionTrigger(
   const action = data?.action?.value?.action || data?.action?.value?.action;
   const sessionId = data?.action?.value?.session_id;
   const recordId = data?.action?.value?.record_id;
+  const studentId = data?.action?.value?.student_id;
+  const studentName = data?.action?.value?.student_name;
   const openId = data?.header?.operator_id || data?.context?.operator_id;
   const openMessageId = data?.context?.open_message_id;
 
@@ -336,8 +337,12 @@ async function handleCardActionTrigger(
     );
   }
 
+  // Get session if sessionId provided
+  const session = sessionId ? await getAttendanceSession(env, sessionId) : null;
+
   // Handle different actions
   if (action === 'start_attendance') {
+    // Original H5 redirect flow
     if (!sessionId || !recordId) {
       return new Response(
         JSON.stringify({ toast: { type: 'error', content: 'Missing session info' } }),
@@ -345,10 +350,8 @@ async function handleCardActionTrigger(
       );
     }
 
-    // Get or create attendance session
-    let session = await getAttendanceSession(env, sessionId);
-
-    if (!session) {
+    let sess = session;
+    if (!sess) {
       // Create new session
       const newSessionId = crypto.randomUUID();
       await createAttendanceSession(env, {
@@ -364,15 +367,173 @@ async function handleCardActionTrigger(
         scheduled_time: data?.action?.value?.scheduled_time || null,
         status: 'active',
       });
-      session = await getAttendanceSession(env, newSessionId);
+      sess = await getAttendanceSession(env, newSessionId);
     }
 
     // Return redirect to H5
-    const h5Url = `https://bitbot.pages.dev/attendance?sess=${session.id}&record=${recordId}&card=${openMessageId}`;
+    const h5Url = `https://bitbot.pages.dev/attendance?sess=${sess.id}&record=${recordId}&card=${openMessageId}`;
 
     return new Response(
       JSON.stringify({
         toast: { type: 'success', content: '正在打开点名页面...' },
+        open_url: h5Url,
+      }),
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Student sign in action
+  if (action === 'student_sign_in') {
+    if (!session || !studentId) {
+      return new Response(
+        JSON.stringify({ toast: { type: 'error', content: '缺少必要参数' } }),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    try {
+      const bitableConfig = {
+        appId: institution.feishu_app_id,
+        appSecret: institution.feishu_app_secret,
+        baseId: institution.bitable_base_id || '',
+      };
+
+      // Resolve bitable app_token if it's a wiki URL
+      let resolvedBaseId = bitableConfig.baseId;
+      if (resolvedBaseId) {
+        try {
+          resolvedBaseId = await bitable.resolveBitableAppToken(bitableConfig, resolvedBaseId);
+        } catch (e) {
+          console.log('Failed to resolve bitable app_token:', e);
+        }
+      }
+      const finalConfig = { ...bitableConfig, baseId: resolvedBaseId };
+
+      // Write to sign record table
+      if (institution.bitable_sign_record_table_id) {
+        await bitable.addAttendanceRecord(
+          finalConfig,
+          institution.bitable_sign_record_table_id,
+          studentName,
+          institution.name, // campus name
+          session.course_name || '',
+          session.class_name || '',
+          session.scheduled_time || Date.now(),
+          '已到',
+          '卡片签到'
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          toast: { type: 'success', content: `${studentName} 已签到` },
+          update_card: true,
+        }),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+    } catch (error) {
+      console.error('Sign in error:', error);
+      return new Response(
+        JSON.stringify({ toast: { type: 'error', content: '签到失败' } }),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+  }
+
+  // Student leave action
+  if (action === 'student_leave') {
+    if (!session || !studentId) {
+      return new Response(
+        JSON.stringify({ toast: { type: 'error', content: '缺少必要参数' } }),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    try {
+      const bitableConfig = {
+        appId: institution.feishu_app_id,
+        appSecret: institution.feishu_app_secret,
+        baseId: institution.bitable_base_id || '',
+      };
+
+      let resolvedBaseId = bitableConfig.baseId;
+      if (resolvedBaseId) {
+        try {
+          resolvedBaseId = await bitable.resolveBitableAppToken(bitableConfig, resolvedBaseId);
+        } catch (e) {
+          console.log('Failed to resolve bitable app_token:', e);
+        }
+      }
+      const finalConfig = { ...bitableConfig, baseId: resolvedBaseId };
+
+      // Write to leave record table (using addAttendanceRecord with '请假' status)
+      if (institution.bitable_sign_record_table_id) {
+        await bitable.addAttendanceRecord(
+          finalConfig,
+          institution.bitable_sign_record_table_id,
+          studentName,
+          institution.name,
+          session.course_name || '',
+          session.class_name || '',
+          session.scheduled_time || Date.now(),
+          '请假',
+          '卡片请假'
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          toast: { type: 'success', content: `${studentName} 已请假` },
+          update_card: true,
+        }),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+    } catch (error) {
+      console.error('Leave error:', error);
+      return new Response(
+        JSON.stringify({ toast: { type: 'error', content: '请假失败' } }),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+  }
+
+  // Sign all action (sign in all remaining students)
+  if (action === 'sign_all') {
+    if (!session) {
+      return new Response(
+        JSON.stringify({ toast: { type: 'error', content: '缺少session信息' } }),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Note: For sign_all, we need to know which students haven't signed yet
+    // This would require querying the sign record table to find unsigned students
+    // For now, return a message suggesting to use H5 for batch operations
+    const h5Url = `https://bitbot.pages.dev/attendance?mode=summary&sess=${session.id}`;
+
+    return new Response(
+      JSON.stringify({
+        toast: { type: 'info', content: '请使用H5页面进行批量操作' },
+        open_url: h5Url,
+      }),
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // View summary action - open H5 summary page
+  if (action === 'view_summary') {
+    if (!session) {
+      return new Response(
+        JSON.stringify({ toast: { type: 'error', content: '缺少session信息' } }),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const h5Url = `https://bitbot.pages.dev/attendance?mode=summary&sess=${session.id}`;
+
+    return new Response(
+      JSON.stringify({
+        toast: { type: 'success', content: '正在打开汇总页面...' },
         open_url: h5Url,
       }),
       { headers: { 'Content-Type': 'application/json' } }
