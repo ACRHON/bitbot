@@ -565,6 +565,8 @@ export interface BitableTestResult {
   success: boolean;
   base_id?: string;
   tables_count?: number;
+  tables?: Array<{ table_id: string; name: string }>;
+  matched_table_ids?: Record<string, string>;
   message?: string;
   error?: string;
 }

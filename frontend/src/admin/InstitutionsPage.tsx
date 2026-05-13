@@ -20,6 +20,7 @@ interface Institution {
   bitable_base_id?: string | null;
   bitable_student_table_id?: string | null;
   bitable_sign_record_table_id?: string | null;
+  bitable_schedule_table_id?: string | null;
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
@@ -41,6 +42,9 @@ const InstitutionsPage: React.FC = () => {
     feishu_encrypt_key: '',
     bitable_base_id: '',
     activation_code: '',
+    bitable_student_table_id: '',
+    bitable_sign_record_table_id: '',
+    bitable_schedule_table_id: '',
   });
 
   // Stepper state
@@ -287,6 +291,9 @@ const InstitutionsPage: React.FC = () => {
       feishu_encrypt_key: inst.feishu_encrypt_key || '',
       bitable_base_id: inst.bitable_base_id || '',
       activation_code: '',
+      bitable_student_table_id: inst.bitable_student_table_id || '',
+      bitable_sign_record_table_id: inst.bitable_sign_record_table_id || '',
+      bitable_schedule_table_id: inst.bitable_schedule_table_id || '',
     });
     setShowSecret(false); // Hide secret by default when editing
     setIsUnlimited(false);
@@ -307,6 +314,9 @@ const InstitutionsPage: React.FC = () => {
       feishu_encrypt_key: '',
       bitable_base_id: '',
       activation_code: '',
+      bitable_student_table_id: '',
+      bitable_sign_record_table_id: '',
+      bitable_schedule_table_id: '',
     });
     setCurrentStep(1);
     setActivationCodeInfo(null);
@@ -736,8 +746,20 @@ const InstitutionsPage: React.FC = () => {
                           );
                           if (result.success) {
                             setBitableTestStatus('success');
-                            setBitableTestMessage(result.message || `连接成功，找到 ${result.tables_count} 个数据表`);
+                            const matched = result.matched_table_ids;
+                            const matchedCount = matched ? Object.keys(matched).length : 0;
+                            setBitableTestMessage(result.message || `连接成功，找到 ${result.tables_count} 个数据表，自动识别 ${matchedCount} 个业务表`);
                             setBitableTestPassed(true);
+
+                            // Auto-fill matched table IDs
+                            if (matched) {
+                              setFormData(prev => ({
+                                ...prev,
+                                bitable_sign_record_table_id: matched.bitable_sign_record_table_id || prev.bitable_sign_record_table_id,
+                                bitable_schedule_table_id: matched.bitable_schedule_table_id || prev.bitable_schedule_table_id,
+                                bitable_student_table_id: matched.bitable_student_table_id || prev.bitable_student_table_id,
+                              }));
+                            }
                           } else {
                             setBitableTestStatus('error');
                             setBitableTestMessage(result.error || '连接失败');

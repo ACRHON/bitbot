@@ -283,11 +283,40 @@ async function testBitableConnection(env: Env, request: Request): Promise<Respon
         }
       }
 
+      // Auto-match table IDs based on table names
+      const tableNameMap: Record<string, string[]> = {
+        // 签到记录表
+        'bitable_sign_record_table_id': ['签到记录', '签到表', '考勤记录', '考勤表'],
+        // 排课管理表
+        'bitable_schedule_table_id': ['排课管理', '排课', '课程安排', '课表'],
+        // 学员信息表
+        'bitable_student_table_id': ['学员信息', '学员表', '学员档案', '学生信息'],
+        // 请假记录表
+        'bitable_leave_record_table_id': ['请假记录', '请假表', '请假'],
+      };
+
+      const matchedTableIds: Record<string, string> = {};
+
+      for (const [fieldName, keywords] of Object.entries(tableNameMap)) {
+        for (const table of tables) {
+          const tableName = table.name.toLowerCase();
+          for (const keyword of keywords) {
+            if (tableName.includes(keyword.toLowerCase())) {
+              matchedTableIds[fieldName] = table.table_id;
+              break;
+            }
+          }
+          if (matchedTableIds[fieldName]) break;
+        }
+      }
+
       return new Response(JSON.stringify({
         success: true,
         base_id: resolvedBaseId,
         tables_count: tables.length,
-        message: `连接成功，找到 ${tables.length} 个数据表`
+        tables: tables, // Return all tables for reference
+        matched_table_ids: matchedTableIds, // Auto-matched table IDs
+        message: `连接成功，找到 ${tables.length} 个数据表，已自动识别 ${Object.keys(matchedTableIds).length} 个业务表`
       }), {
         headers: { 'Content-Type': 'application/json' },
       });
