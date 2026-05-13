@@ -111,6 +111,7 @@ async function create(env: Env, request: Request): Promise<Response> {
       bitable_student_table_id,
       bitable_sign_record_table_id,
       bitable_schedule_table_id,
+      bitable_tables,
       activation_code,
       expires_at,
     } = body;
@@ -168,6 +169,7 @@ async function create(env: Env, request: Request): Promise<Response> {
       bitable_student_table_id: bitable_student_table_id || null,
       bitable_sign_record_table_id: bitable_sign_record_table_id || null,
       bitable_schedule_table_id: bitable_schedule_table_id || null,
+      bitable_tables: bitable_tables || null,
       expires_at: expiresAt,
       status: 'active',
       activation_code: activation_code || null,
