@@ -16,6 +16,6 @@
   "devDependencies": {
     "concurrently": "^8.2.2",
     "localtunnel": "^2.0.2",
-    "wrangler": "^4.90.0"
+    "wrangler": "^4.90.1"
   }
 }
