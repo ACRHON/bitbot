@@ -18,6 +18,7 @@ export interface Institution {
   bitable_student_table_id: string | null;
   bitable_sign_record_table_id: string | null;
   bitable_schedule_table_id: string | null;
+  bitable_tables: string | null;
   created_at: number;
   expires_at: number;
   status: string;
@@ -85,13 +86,13 @@ export async function createInstitution(env: Env, data: Omit<Institution, 'creat
   const stmt = env.DB.prepare(`
     INSERT INTO institutions (id, name, feishu_app_id, feishu_app_secret,
       feishu_verification_token, feishu_encrypt_key, bitable_base_id,
-      bitable_student_table_id, bitable_sign_record_table_id, bitable_schedule_table_id,
+      bitable_student_table_id, bitable_sign_record_table_id, bitable_schedule_table_id, bitable_tables,
       created_at, expires_at, status, activation_code)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     data.id, data.name, data.feishu_app_id, data.feishu_app_secret,
     data.feishu_verification_token, data.feishu_encrypt_key,
-    data.bitable_base_id, data.bitable_student_table_id || null, data.bitable_sign_record_table_id || null, data.bitable_schedule_table_id || null,
+    data.bitable_base_id, data.bitable_student_table_id || null, data.bitable_sign_record_table_id || null, data.bitable_schedule_table_id || null, data.bitable_tables || null,
     now, data.expires_at, data.status, data.activation_code
   );
   await stmt.run();

@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS institutions (
   bitable_student_table_id TEXT,
   bitable_sign_record_table_id TEXT,
   bitable_schedule_table_id TEXT,
+  bitable_tables TEXT,
   created_at INTEGER NOT NULL,
   expires_at INTEGER NOT NULL,
   status TEXT DEFAULT 'active' CHECK(status IN ('active', 'suspended', 'expired')),
