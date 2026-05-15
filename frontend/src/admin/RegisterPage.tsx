@@ -4,6 +4,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE } from '../lib/api';
 
 const RegisterPage: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -33,7 +34,7 @@ const RegisterPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/admin/register', {
+      const response = await fetch(`${API_BASE}/api/admin/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password, name }),

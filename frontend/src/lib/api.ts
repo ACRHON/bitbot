@@ -5,6 +5,7 @@
 import { isDevMode, mockCheckAuth, mockGetSession, mockGetSessionStudents, mockGetSessionAbsences, mockSignStudent, mockMakeupSign, mockSearchStudents, mockAddTempStudent, mockUndoSign, mockGetAttendanceLogs, mockListCronJobs, mockGetStats } from './mock';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
+export { API_BASE };
 
 // Dev mode check
 const DEV_MODE = isDevMode;
