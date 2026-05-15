@@ -16,6 +16,7 @@ interface Stats {
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
+const WEBHOOK_BASE = `${window.location.origin}/webhook/feishu`;
 
 const AdminDashboard: React.FC = () => {
   const { token } = useAuth();
@@ -120,12 +121,12 @@ const AdminDashboard: React.FC = () => {
           border: '1px solid var(--border-color)',
         }}>
           <code style={{ flex: 1, fontSize: '14px', color: 'var(--text-color)' }}>
-            https://fastbot.de5.net/webhook/feishu
+            {WEBHOOK_BASE}
           </code>
           <button
             className="btn btn-secondary btn-sm"
             onClick={() => {
-              navigator.clipboard.writeText('https://fastbot.de5.net/webhook/feishu');
+              navigator.clipboard.writeText(WEBHOOK_BASE);
               alert('已复制到剪贴板');
             }}
           >

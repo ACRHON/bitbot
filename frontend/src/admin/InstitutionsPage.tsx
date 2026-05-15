@@ -25,7 +25,7 @@ interface Institution {
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
-const WEBHOOK_BASE = 'https://fastbot.de5.net/webhook/feishu';
+const WEBHOOK_BASE = `${window.location.origin}/webhook/feishu`;
 
 const InstitutionsPage: React.FC = () => {
   const { token } = useAuth();
