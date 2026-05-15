@@ -44,14 +44,25 @@ Cloudflare Pages (H5 Frontend)
 cd frontend
 npm install
 npm run dev
-npm run build
+npm run build              # 生产构建
+npm run build:dev         # 开发构建
 
 # Backend (Workers)
 cd workers
-npx wrangler d1 execute bitbot-db --local --file=./src/db/schema.sql  # Init D1
-npx wrangler dev                 # Local dev
-npx wrangler deploy              # Deploy
+npx wrangler d1 execute bitbot-db --local --file=./src/db/schema.sql  # 初始化 D1
+npx wrangler dev                 # 本地开发
+npx wrangler deploy              # 生产部署
+npx wrangler deploy --env dev --config wrangler.dev.toml  # 开发部署
 ```
+
+## Environments
+
+| 环境 | URL | D1 数据库 | 用途 |
+|------|-----|----------|------|
+| 生产 | https://fastbot.de5.net | bitbot-db | 正式运营 |
+| 开发 | https://bitbot-dev.hallofaiden.workers.dev | bitbot-dev-db | 测试开发 |
+
+详细的部署说明请参考 [DEPLOY.md](./docs/DEPLOY.md)
 
 ## Key Flows
 
@@ -104,9 +115,12 @@ bitbot/
 │   │       ├── feishu-api.ts # Feishu API calls
 │   │       └── bitable.ts    # Bitable API calls
 │   ├── wrangler.toml
+│   ├── wrangler.dev.toml   # 开发环境配置
 │   └── tsconfig.json
 │
 ├── CLAUDE.md
 ├── SPEC.md
-└── README.md
+├── README.md
+└── docs/
+    └── DEPLOY.md           # 部署指南
 ```

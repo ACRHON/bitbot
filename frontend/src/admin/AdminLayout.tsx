@@ -24,6 +24,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { path: '/admin', label: '首页', icon: '📊' },
     { path: '/admin/institutions', label: '机构管理', icon: '🏢' },
     { path: '/admin/activation', label: '激活码', icon: '🔑' },
+    { path: '/admin/schedule', label: '排课管理', icon: '📅' },
     { path: '/admin/cron', label: '定时任务', icon: '⏰' },
     { path: '/admin/attendance-summary', label: '考勤记录', icon: '📋' },
     { path: '/admin/students', label: '学员管理', icon: '👨‍🎓' },

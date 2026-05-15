@@ -16,14 +16,24 @@ import {
 import { sendAttendanceCard, sendCardMessage } from '../services/feishu-api';
 import * as bitable from '../services/bitable';
 
-export type CronJobType = 'class_reminder' | 'attendance_summary';
+export type CronJobType = 'class_reminder' | 'class_reminder_fixed' | 'attendance_summary';
 
 export interface CronJobConfig {
-  target_type: 'chat_id' | 'open_id';
-  target_id: string;
-  reminder_minutes: number;
+  record_id?: string;
+  course_type?: string;
   course_name?: string;
   class_name?: string;
+  weekday?: string;
+  class_time?: string;
+  end_time?: string;
+  duration_minutes?: number;
+  campus?: string;
+  is_fixed_date?: boolean;
+  scheduled_date?: number;
+  vacation_type?: string;
+  target_type?: 'chat_id' | 'open_id';
+  target_id?: string;
+  reminder_minutes?: number;
 }
 
 /**
@@ -55,16 +65,15 @@ async function executeCronJob(env: Env, job: any): Promise<void> {
   }
 
   const now = Date.now();
-  const scheduleTime = parseScheduleTime(job.schedule);
 
-  // Check if should run now
-  if (!shouldRunNow(now, scheduleTime, job.job_type)) {
+  // Check if should run now based on job type and schedule
+  if (!shouldRunNow(now, job.schedule, job.job_type)) {
     return;
   }
 
   console.log(`Executing cron job ${job.id} of type ${job.job_type}`);
 
-  if (job.job_type === 'class_reminder') {
+  if (job.job_type === 'class_reminder' || job.job_type === 'class_reminder_fixed') {
     await executeClassReminder(env, job, institution, config);
   } else if (job.job_type === 'attendance_summary') {
     await executeAttendanceSummary(env, job, institution, config);
@@ -97,81 +106,125 @@ async function executeClassReminder(
   }
 
   const finalBitableConfig = { ...bitableConfig, baseId: resolvedBaseId };
-
   const scheduleTableId = institution.bitable_schedule_table_id;
+
   if (!scheduleTableId) {
     console.log('Schedule table not configured');
     return;
   }
 
-  // Calculate time range (next 30 minutes)
   const now = Date.now();
-  const startTime = now;
-  const endTime = now + 30 * 60 * 1000;
 
-  // Get upcoming classes
-  const scheduleRecords = await bitable.getScheduleByTime(
-    finalBitableConfig,
-    scheduleTableId,
-    '上课时间', // time field name
-    startTime,
-    endTime
-  );
-
-  if (scheduleRecords.length === 0) {
-    console.log('No upcoming classes found');
+  // Check if today is in a holiday period (放假 type skips)
+  const holidayStatus = await isInHoliday(now, institution, finalBitableConfig);
+  if (holidayStatus.isHoliday) {
+    console.log(`Today is in ${holidayStatus.holidayType} period, skipping class reminder`);
     return;
   }
 
-  for (const record of scheduleRecords) {
-    const fields = record.fields;
-    const courseName = fields['课程'] || fields['course_name'] || '';
-    const className = fields['班级'] || fields['class_name'] || '';
-    const teacherName = fields['上课老师'] || fields['teacher_name'] || '';
-    const scheduledTime = fields['上课时间'];
-    const recordId = record.record_id;
-
-    // Format scheduled time
-    const date = new Date(scheduledTime);
-    const timeStr = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-
-    // Create attendance session
-    const sessionId = crypto.randomUUID();
-    await createAttendanceSession(env, {
-      id: sessionId,
-      institution_id: institution.id,
-      record_id: recordId,
-      card_id: null,
-      message_id: null,
-      open_message_id: null,
-      course_name: courseName,
-      class_name: className,
-      teacher_name: teacherName,
-      scheduled_time: scheduledTime,
-      status: 'active',
-    });
-
-    // Send attendance card
-    try {
-      const cardResult = await sendAttendanceCard(
-        {
-          appId: institution.feishu_app_id,
-          appSecret: institution.feishu_app_secret,
-        },
-        config.target_id,
-        config.target_type as 'chat_id' | 'open_id',
-        sessionId,
-        recordId,
-        courseName,
-        className,
-        teacherName,
-        timeStr
-      );
-
-      console.log(`Sent attendance card for session ${sessionId}, message_id: ${cardResult.messageId}`);
-    } catch (error) {
-      console.error(`Failed to send attendance card:`, error);
+  // For fixed date courses (class_reminder_fixed), check if today matches the scheduled date
+  if (job.job_type === 'class_reminder_fixed' && config.scheduled_date) {
+    const scheduledDate = new Date(config.scheduled_date);
+    const today = new Date(now);
+    // Check if it's the same day
+    if (scheduledDate.getDate() !== today.getDate() ||
+        scheduledDate.getMonth() !== today.getMonth() ||
+        scheduledDate.getFullYear() !== today.getFullYear()) {
+      console.log('Fixed date course not today, skipping');
+      return;
     }
+  }
+
+  // Get all schedule records and find the matching one
+  const allRecords = await bitable.getRecords(finalBitableConfig, scheduleTableId);
+
+  // Find the record that matches this cron job's config
+  const matchingRecord = allRecords.find((record: any) => {
+    // Match by record_id if available
+    if (config.record_id && record.record_id === config.record_id) {
+      return true;
+    }
+    // Fallback: match by course_type, weekday, and class_time
+    if (config.course_type && config.weekday && config.class_time) {
+      const fields = record.fields;
+      const recordWeekday = fields['日期'];
+      const recordClassTime = fields['上课时间'];
+
+      // Check weekday match (e.g., "周一" === "周一")
+      if (recordWeekday !== config.weekday) {
+        return false;
+      }
+
+      // Check time match
+      if (recordClassTime) {
+        const d = new Date(recordClassTime);
+        const timeStr = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+        if (timeStr !== config.class_time) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+    return false;
+  });
+
+  if (!matchingRecord) {
+    console.log('No matching schedule record found for this cron job');
+    return;
+  }
+
+  const fields = matchingRecord.fields;
+  const courseName = extractText(fields['课程'] || fields['course_name'] || '');
+  const className = extractText(fields['班级名称'] || fields['班级'] || config.course_name || '');
+  const teacherName = extractText(fields['上课老师'] || '');
+  const scheduledTime = fields['上课时间'];
+  const recordId = matchingRecord.record_id;
+
+  // Format scheduled time for display
+  const date = new Date(scheduledTime);
+  const timeStr = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+
+  // Create attendance session
+  const sessionId = crypto.randomUUID();
+  await createAttendanceSession(env, {
+    id: sessionId,
+    institution_id: institution.id,
+    record_id: recordId,
+    card_id: null,
+    message_id: null,
+    open_message_id: null,
+    course_name: courseName,
+    class_name: className,
+    teacher_name: teacherName,
+    scheduled_time: scheduledTime,
+    status: 'active',
+  });
+
+  // Send attendance card
+  try {
+    // Use target from job config or fallback to cron job config
+    const targetId = config.target_id || '';
+    const targetType = (config.target_type || 'chat_id') as 'chat_id' | 'open_id';
+
+    const cardResult = await sendAttendanceCard(
+      {
+        appId: institution.feishu_app_id,
+        appSecret: institution.feishu_app_secret,
+      },
+      targetId,
+      targetType,
+      sessionId,
+      recordId,
+      courseName,
+      className,
+      teacherName,
+      timeStr
+    );
+
+    console.log(`Sent attendance card for session ${sessionId}, message_id: ${cardResult.messageId}`);
+  } catch (error) {
+    console.error(`Failed to send attendance card:`, error);
   }
 }
 
@@ -239,31 +292,119 @@ async function executeAttendanceSummary(
  * Parse cron schedule to determine if should run
  * Simplified version - in production use a proper cron parser
  */
-function parseScheduleTime(schedule: string): { hour: number; minute: number } {
+function parseScheduleTime(schedule: string): { hour: number; minute: number; day?: number; month?: number; weekday?: number } {
   // Format: "0 9 * * *" = at 9:00 every day
+  // Format: "0 9 1 5 *" = at 9:00 on day 1 of month 5 (May 1st)
+  // Format: "10 16 * * 1" = at 16:10 on weekday 1 (Monday)
   const parts = schedule.split(' ');
   if (parts.length < 5) {
     return { hour: 9, minute: 0 };
   }
 
-  const minute = parseInt(parts[1], 10) || 0;
-  const hour = parseInt(parts[2], 10) || 9;
+  const minute = parseInt(parts[0], 10) || 0;
+  const hour = parseInt(parts[1], 10) || 9;
+  const day = parts[2] === '*' ? null : parseInt(parts[2], 10);
+  const month = parts[3] === '*' ? null : parseInt(parts[3], 10);
+  const weekday = parts[4] === '*' ? null : parseInt(parts[4], 10);
 
-  return { hour, minute };
+  return { hour, minute, day, month, weekday };
 }
 
-function shouldRunNow(now: number, schedule: { hour: number; minute: number }, jobType: string): boolean {
+function shouldRunNow(now: number, schedule: string, jobType: string): boolean {
   const date = new Date(now);
   const currentHour = date.getHours();
   const currentMinute = date.getMinutes();
+  const currentDay = date.getDate();
+  const currentMonth = date.getMonth() + 1;
+  const currentWeekday = date.getDay();
 
-  // For class_reminder, run every minute during business hours
+  const scheduleInfo = parseScheduleTime(schedule);
+
   if (jobType === 'class_reminder') {
-    return currentHour >= 7 && currentHour <= 21;
+    // Loop course: check if current time matches the scheduled weekday
+    // For class_reminder, run every minute during business hours if it matches
+    if (currentHour >= 7 && currentHour <= 21) {
+      // Check if weekday matches (0=Sun, 1=Mon, etc.)
+      if (scheduleInfo.weekday !== null && scheduleInfo.weekday !== currentWeekday) {
+        return false;
+      }
+      // Check if hour and minute match
+      if (scheduleInfo.hour === currentHour && scheduleInfo.minute === currentMinute) {
+        return true;
+      }
+    }
+    return false;
+  } else if (jobType === 'class_reminder_fixed') {
+    // Fixed date course: check exact time match
+    if (scheduleInfo.day === currentDay && scheduleInfo.month === currentMonth) {
+      if (scheduleInfo.hour === currentHour && scheduleInfo.minute === currentMinute) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // For other jobs, check exact time
-  return currentHour === schedule.hour && currentMinute === schedule.minute;
+  return scheduleInfo.hour === currentHour && scheduleInfo.minute === currentMinute;
+}
+
+/**
+ * Check if current date is in a holiday period
+ */
+async function isInHoliday(
+  now: number,
+  institution: any,
+  finalBitableConfig: any
+): Promise<{ isHoliday: boolean; holidayType: string | null }> {
+  const bitableTables = institution.bitable_tables ? JSON.parse(institution.bitable_tables) : {};
+  const holidayTableId = bitableTables['假期日历'];
+
+  if (!holidayTableId) {
+    return { isHoliday: false, holidayType: null };
+  }
+
+  try {
+    const holidayRecords = await bitable.getRecords(finalBitableConfig, holidayTableId);
+    const today = new Date(now);
+
+    for (const record of holidayRecords) {
+      const startDate = record.fields?.['开始日期'];
+      const endDate = record.fields?.['结束日期'];
+      const holidayType = extractText(record.fields?.['类型'] || '');
+
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        if (today >= start && today <= end) {
+          // Check if it's a skip-worthy holiday (放假 skips, 寒假/暑假 checks course package)
+          if (holidayType === '放假') {
+            return { isHoliday: true, holidayType };
+          }
+          // For 寒假/暑假, we continue and check course package later
+          return { isHoliday: false, holidayType };
+        }
+      }
+    }
+  } catch (e) {
+    console.log('Error checking holidays:', e);
+  }
+
+  return { isHoliday: false, holidayType: null };
+}
+
+function extractText(value: any): string {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) {
+    return value.map(v => {
+      if (typeof v === 'string') return v;
+      if (v.text) return v.text;
+      if (v.text_arr && Array.isArray(v.text_arr)) return v.text_arr.join(',');
+      return '';
+    }).filter(Boolean).join(',');
+  }
+  if (typeof value === 'object' && value.text) return value.text;
+  return String(value);
 }
 
 /**

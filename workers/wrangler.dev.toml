@@ -1,0 +1,25 @@
+name = "bitbot-dev"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+account_id = "cc2427c27991a20591e6156a179fb49c"
+
+[env.dev]
+name = "bitbot-dev"
+main = "src/index.ts"
+
+[env.dev.site]
+bucket = "../frontend/dist"
+
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "bitbot-dev-db"
+database_id = "44e58750-3b53-4be7-b37c-b62be926cc9b"
+
+[env.dev.triggers]
+crons = ["* * * * *"]
+
+[env.dev.vars]
+ENV = "dev"
+
+[env.dev.dev]
+local_protocol = "http"

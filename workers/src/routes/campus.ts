@@ -14,6 +14,22 @@ function buildBitableConfig(institution: any): bitable.BitableConfig {
   };
 }
 
+// Helper function to extract text from field value (handles user mentions, etc.)
+function extractText(value: any): string {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) {
+    return value.map(v => {
+      if (typeof v === 'string') return v;
+      if (v.text) return v.text;
+      if (v.text_arr && Array.isArray(v.text_arr)) return v.text_arr.join(',');
+      return '';
+    }).filter(Boolean).join(',');
+  }
+  if (typeof value === 'object' && value.text) return value.text;
+  return String(value);
+}
+
 export async function handleCampusRequest(
   env: Env,
   request: Request
@@ -55,6 +71,20 @@ export async function handleCampusRequest(
         // GET /api/campus/:institutionId/data - get all data at once
         if (method === 'GET') {
           return await handleGetAllData(bitableConfig, institution);
+        }
+        return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
+
+      case 'schedules':
+        // GET /api/campus/:institutionId/schedules - get all schedule records
+        if (method === 'GET') {
+          return await handleSchedules(bitableConfig, institution);
+        }
+        return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
+
+      case 'holidays':
+        // GET /api/campus/:institutionId/holidays - get holiday calendar
+        if (method === 'GET') {
+          return await handleHolidays(bitableConfig, institution);
         }
         return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
 
@@ -194,6 +224,112 @@ async function handleClasses(
 
     default:
       return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
+  }
+}
+
+async function handleSchedules(
+  config: bitable.BitableConfig,
+  institution: any
+): Promise<Response> {
+  const scheduleTableId = institution.bitable_schedule_table_id;
+  if (!scheduleTableId) {
+    return new Response(JSON.stringify({ error: 'Schedule table not configured' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  try {
+    // Resolve wiki URL to app_token if needed
+    let resolvedBaseId = config.baseId;
+    try {
+      resolvedBaseId = await bitable.resolveBitableAppToken(config, config.baseId);
+    } catch (e) {
+      console.log('Failed to resolve bitable app_token, using original:', e);
+    }
+    const resolvedConfig = { ...config, baseId: resolvedBaseId };
+
+    const records = await bitable.getRecords(resolvedConfig, scheduleTableId);
+    // Map to simplified schedule structure
+    const schedules = records.map((record: any) => {
+      // Helper function to extract text from field value (handles user mentions, etc.)
+      const extractText = (value: any): string => {
+        if (!value) return '';
+        if (typeof value === 'string') return value;
+        if (Array.isArray(value)) {
+          // Handle user mentions array
+          return value.map(v => {
+            if (typeof v === 'string') return v;
+            if (v.text) return v.text;
+            if (v.text_arr && Array.isArray(v.text_arr)) return v.text_arr.join(',');
+            return '';
+          }).filter(Boolean).join(',');
+        }
+        if (typeof value === 'object' && value.text) return value.text;
+        return String(value);
+      };
+
+      return {
+        record_id: record.record_id,
+        class_name: extractText(record.fields?.['班级'] || record.fields?.['课程名称'] || ''),
+        course_name: extractText(record.fields?.['课程'] || record.fields?.['课程名称'] || ''),
+        teacher_name: extractText(record.fields?.['上课老师'] || ''),
+        scheduled_time: record.fields?.['上课时间'] || null,
+        end_time: record.fields?.['下课时间'] || null,
+        day_of_week: extractText(record.fields?.['星期'] || ''),
+        duration_minutes: record.fields?.['时长'] || 0,
+        student_count: record.fields?.['学员人数'] || 0,
+        students: extractText(record.fields?.['学员名单'] || ''),
+        campus: extractText(record.fields?.['校区'] || record.fields?.['上课地点'] || ''),
+      };
+    });
+
+    return new Response(JSON.stringify({ schedules }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error('Failed to fetch schedules:', error);
+    return new Response(JSON.stringify({ error: String(error) }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  }
+}
+
+async function handleHolidays(
+  config: bitable.BitableConfig,
+  institution: any
+): Promise<Response> {
+  // Get holiday table ID from institution's bitable_tables
+  const bitableTables = institution.bitable_tables ? JSON.parse(institution.bitable_tables) : {};
+  const holidayTableId = bitableTables['假期日历'];
+
+  if (!holidayTableId) {
+    return new Response(JSON.stringify({ holidays: [] }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  try {
+    // Resolve wiki URL if needed
+    let resolvedBaseId = config.baseId;
+    try {
+      resolvedBaseId = await bitable.resolveBitableAppToken(config, config.baseId);
+    } catch (e) {
+      console.log('Failed to resolve bitable app_token, using original');
+    }
+    const resolvedConfig = { ...config, baseId: resolvedBaseId };
+
+    const records = await bitable.getRecords(resolvedConfig, holidayTableId);
+
+    const holidays = records.map((record: any) => ({
+      record_id: record.record_id,
+      start_date: record.fields?.['开始日期'] || null,
+      end_date: record.fields?.['结束日期'] || null,
+      type: extractText(record.fields?.['类型'] || ''),
+      duration_days: record.fields?.['时长(天)'] || 0,
+      package_id: record.fields?.['指定课时包']?.id || null,
+      remark: extractText(record.fields?.['备注'] || ''),
+    }));
+
+    return new Response(JSON.stringify({ holidays }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error('Failed to fetch holidays:', error);
+    return new Response(JSON.stringify({ error: String(error) }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }
 

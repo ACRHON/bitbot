@@ -21,6 +21,7 @@ interface Institution {
   bitable_student_table_id?: string | null;
   bitable_sign_record_table_id?: string | null;
   bitable_schedule_table_id?: string | null;
+  bitable_tables?: string | null;
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
@@ -295,7 +296,7 @@ const InstitutionsPage: React.FC = () => {
       bitable_student_table_id: inst.bitable_student_table_id || '',
       bitable_sign_record_table_id: inst.bitable_sign_record_table_id || '',
       bitable_schedule_table_id: inst.bitable_schedule_table_id || '',
-      bitable_tables: '',
+      bitable_tables: inst.bitable_tables || '',
     });
     setShowSecret(false); // Hide secret by default when editing
     setIsUnlimited(false);
@@ -749,21 +750,20 @@ const InstitutionsPage: React.FC = () => {
                           );
                           if (result.success) {
                             setBitableTestStatus('success');
-                            const matched = result.matched_table_ids;
-                            const matchedCount = matched ? Object.keys(matched).length : 0;
+                            const matched = result.matched_table_ids || {};
+                            const matchedCount = Object.keys(matched).length;
                             setBitableTestMessage(result.message || `连接成功，找到 ${result.tables_count} 个数据表，自动识别 ${matchedCount} 个业务表`);
                             setBitableTestPassed(true);
 
                             // Auto-fill matched table IDs and save all tables map
-                            if (matched) {
-                              setFormData(prev => ({
-                                ...prev,
-                                bitable_sign_record_table_id: matched.bitable_sign_record_table_id || prev.bitable_sign_record_table_id,
-                                bitable_schedule_table_id: matched.bitable_schedule_table_id || prev.bitable_schedule_table_id,
-                                bitable_student_table_id: matched.bitable_student_table_id || prev.bitable_student_table_id,
-                                bitable_tables: result.all_tables_map ? JSON.stringify(result.all_tables_map) : prev.bitable_tables,
-                              }));
-                            }
+                            setFormData(prev => ({
+                              ...prev,
+                              bitable_sign_record_table_id: matched.bitable_sign_record_table_id || prev.bitable_sign_record_table_id,
+                              bitable_schedule_table_id: matched.bitable_schedule_table_id || prev.bitable_schedule_table_id,
+                              bitable_student_table_id: matched.bitable_student_table_id || prev.bitable_student_table_id,
+                              // Always save all_tables_map when available, regardless of matched results
+                              bitable_tables: result.all_tables_map ? JSON.stringify(result.all_tables_map) : prev.bitable_tables,
+                            }));
                           } else {
                             setBitableTestStatus('error');
                             setBitableTestMessage(result.error || '连接失败');

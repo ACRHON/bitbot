@@ -7,6 +7,8 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { listStudentsAdmin, StudentRecord, Institution } from '../lib/api';
 
+const API_BASE = import.meta.env.VITE_API_BASE || '';
+
 const StudentManagementPage: React.FC = () => {
   const { token } = useAuth();
   const [students, setStudents] = useState<StudentRecord[]>([]);
@@ -28,7 +30,7 @@ const StudentManagementPage: React.FC = () => {
 
   const fetchInstitutions = async () => {
     try {
-      const res = await fetch(`/api/admin/institutions`, {
+      const res = await fetch(`${API_BASE}/api/admin/institutions`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

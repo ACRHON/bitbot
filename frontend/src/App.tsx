@@ -8,6 +8,7 @@ import AdminLayout from './admin/AdminLayout';
 import AdminDashboard from './admin/AdminDashboard';
 import InstitutionsPage from './admin/InstitutionsPage';
 import CronJobsAdminPage from './admin/CronJobsAdminPage';
+import ScheduleManagementPage from './admin/ScheduleManagementPage';
 import ActivationCodesPage from './admin/ActivationCodesPage';
 import AttendanceSummaryPage from './admin/AttendanceSummaryPage';
 import StudentManagementPage from './admin/StudentManagementPage';
@@ -76,6 +77,14 @@ function App() {
             element={
               <AdminProtectedRoute>
                 <CronJobsAdminPage />
+              </AdminProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/schedule"
+            element={
+              <AdminProtectedRoute>
+                <ScheduleManagementPage />
               </AdminProtectedRoute>
             }
           />

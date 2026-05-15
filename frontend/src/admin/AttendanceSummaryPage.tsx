@@ -7,6 +7,8 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { listAttendanceRecords, AttendanceRecord, Institution } from '../lib/api';
 
+const API_BASE = import.meta.env.VITE_API_BASE || '';
+
 const AttendanceSummaryPage: React.FC = () => {
   const { token } = useAuth();
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
@@ -32,7 +34,7 @@ const AttendanceSummaryPage: React.FC = () => {
 
   const fetchInstitutions = async () => {
     try {
-      const res = await fetch(`/api/admin/institutions`, {
+      const res = await fetch(`${API_BASE}/api/admin/institutions`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

@@ -28,6 +28,8 @@ export interface Institution {
   bitable_base_id?: string;
   bitable_student_table_id?: string;
   bitable_sign_record_table_id?: string;
+  bitable_schedule_table_id?: string;
+  bitable_tables?: string | null;
   created_at: number;
   expires_at: number;
   status: 'active' | 'suspended' | 'expired';
@@ -240,7 +242,10 @@ function delay(ms: number): Promise<void> {
 
 // Admin API functions
 export async function listInstitutions(): Promise<Institution[]> {
-  const res = await fetch(`${API_BASE}/api/admin/institutions`);
+  const res = await fetch(`${API_BASE}/api/admin/institutions`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem('admin_token')}` },
+  });
+  if (!res.ok) throw new Error('Failed to fetch institutions');
   return res.json();
 }
 
@@ -646,5 +651,83 @@ export async function getCourses(institutionId: string): Promise<Course[]> {
 
 export async function getClasses(institutionId: string): Promise<Class[]> {
   const res = await fetch(`${API_BASE}/api/campus/${institutionId}/classes`);
+  return res.json();
+}
+
+export interface ScheduleRecord {
+  record_id: string;
+  class_name: string;
+  course_name: string;
+  teacher_name: string;
+  scheduled_time: number | null;
+  end_time: number | null;
+  day_of_week: string;
+  duration_minutes: number;
+  student_count: number;
+  students: string;
+  campus: string;
+}
+
+export async function getSchedules(institutionId: string): Promise<{ schedules: ScheduleRecord[] }> {
+  const res = await fetch(`${API_BASE}/api/campus/${institutionId}/schedules`);
+  return res.json();
+}
+
+export interface Holiday {
+  record_id: string;
+  start_date: number | null;
+  end_date: number | null;
+  type: string;
+  duration_days: number;
+  package_id: string | null;
+  remark: string;
+}
+
+export async function getHolidays(institutionId: string): Promise<{ holidays: Holiday[] }> {
+  const res = await fetch(`${API_BASE}/api/campus/${institutionId}/holidays`);
+  return res.json();
+}
+
+export interface SyncResult {
+  success: boolean;
+  total_records: number;
+  results: {
+    created: number;
+    updated: number;
+    deleted: number;
+    skipped: number;
+    errors: string[];
+  };
+}
+
+export async function syncSchedules(institutionId: string): Promise<SyncResult> {
+  const res = await fetch(`${API_BASE}/api/admin/schedule/sync`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('admin_token')}`,
+    },
+    body: JSON.stringify({ institution_id: institutionId }),
+  });
+  return res.json();
+}
+
+export interface ScheduleStatusItem {
+  record_id: string;
+  course_type: string;
+  course_name: string;
+  weekday: string | null;
+  class_time: string;
+  duration_minutes: number;
+  campus: string;
+  cron_job_id: string | null;
+  cron_enabled: boolean;
+  cron_schedule: string | null;
+}
+
+export async function getScheduleStatus(institutionId: string): Promise<{ schedules: ScheduleStatusItem[]; total_cron_jobs: number }> {
+  const res = await fetch(`${API_BASE}/api/admin/schedule/sync?institution_id=${institutionId}`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem('admin_token')}` },
+  });
   return res.json();
 }

@@ -1,0 +1,22 @@
+name = "bitbot-staging"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+account_id = "cc2427c27991a20591e6156a179fb49c"
+
+[site]
+bucket = "../frontend/dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bitbot-staging-db"
+database_id = "b1234567890abcdef1234567890abcdef" # TODO: Create this D1 database
+
+[triggers]
+crons = ["* * * * *"]
+
+routes = [
+  { pattern = "staging-bitbot.de5.net", zone_name = "staging-bitbot.de5.net" }
+]
+
+[vars]
+ENV = "staging"

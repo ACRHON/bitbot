@@ -18,6 +18,7 @@ import { handleAdminAuthRequest } from './routes/admin-auth';
 import { handleAdminCronRequest } from './routes/admin-cron';
 import { handleAdminActivationRequest } from './routes/admin-activation';
 import { handleAdminAttendanceRequest } from './routes/admin-attendance';
+import { handleAdminScheduleRequest } from './routes/admin-schedule';
 import { handleRobotStatus } from './routes/robot';
 import { handleCampusRequest } from './routes/campus';
 import { getStats, getAdminUserById } from './db/queries';
@@ -66,6 +67,9 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       } else if (url.pathname.startsWith('/api/admin/activation')) {
         // Admin activation code management
         response = await handleAdminActivationRequest(env, request);
+      } else if (url.pathname.startsWith('/api/admin/schedule')) {
+        // Admin schedule management
+        response = await handleAdminScheduleRequest(env, request);
       } else if (url.pathname.startsWith('/api/admin/attendance') || url.pathname.startsWith('/api/admin/students')) {
         // Admin attendance records and students
         response = await handleAdminAttendanceRequest(env, request);
