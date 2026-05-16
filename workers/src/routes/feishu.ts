@@ -683,6 +683,7 @@ export async function sendScheduledAttendanceCard(
   recordId: string,
   receiveId: string,
   receiveIdType: 'chat_id' | 'open_id',
+  openMessageId: string | null,
   courseName: string,
   className: string,
   teacherName: string,
@@ -704,6 +705,7 @@ export async function sendScheduledAttendanceCard(
     receiveIdType,
     sessionId,
     recordId,
+    null, // openMessageId not available for proactive sends
     courseName,
     className,
     teacherName,

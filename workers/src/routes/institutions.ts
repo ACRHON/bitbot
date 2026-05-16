@@ -3,7 +3,7 @@
  * Admin CRUD for institutions
  */
 
-import { Env, getAdminUserById } from '../db/queries';
+import { Env, getAdminUserById, listAuthorizedUsers, createAuthorizedUser, deleteAuthorizedUser } from '../db/queries';
 
 export async function handleInstitutionRequest(
   env: Env,
@@ -42,6 +42,26 @@ export async function handleInstitutionRequest(
   if (request.method === 'DELETE' && path.startsWith('/api/admin/institutions/')) {
     const id = path.split('/')[4];
     return await remove(env, id);
+  }
+
+  // Route: GET /api/admin/institutions/:id/users
+  if (request.method === 'GET' && path.match(/^\/api\/admin\/institutions\/[^/]+\/users$/)) {
+    const id = path.split('/')[4];
+    return await listUsers(env, id);
+  }
+
+  // Route: POST /api/admin/institutions/:id/users
+  if (request.method === 'POST' && path.match(/^\/api\/admin\/institutions\/[^/]+\/users$/)) {
+    const id = path.split('/')[4];
+    return await addUser(env, id, request);
+  }
+
+  // Route: DELETE /api/admin/institutions/:id/users/:userId
+  if (request.method === 'DELETE' && path.match(/^\/api\/admin\/institutions\/[^/]+\/users\/[^/]+$/)) {
+    const parts = path.split('/');
+    const id = parts[4];
+    const userId = parts[6];
+    return await removeUser(env, id, userId);
   }
 
   return new Response('Not Found', { status: 404 });
@@ -246,6 +266,58 @@ async function remove(env: Env, id: string): Promise<Response> {
   try {
     const { deleteInstitution } = await import('../db/queries');
     await deleteInstitution(env, id);
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    return new Response(`Error: ${error}`, { status: 500 });
+  }
+}
+
+async function listUsers(env: Env, institutionId: string): Promise<Response> {
+  try {
+    const users = await listAuthorizedUsers(env, institutionId);
+    return new Response(JSON.stringify(users), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    return new Response(`Error: ${error}`, { status: 500 });
+  }
+}
+
+async function addUser(env: Env, institutionId: string, request: Request): Promise<Response> {
+  try {
+    const body = await request.json();
+    const { feishu_open_id, feishu_name, role } = body;
+
+    if (!feishu_open_id) {
+      return new Response(JSON.stringify({ error: 'feishu_open_id is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const id = crypto.randomUUID();
+    await createAuthorizedUser(env, {
+      id,
+      institution_id: institutionId,
+      feishu_open_id,
+      feishu_name: feishu_name || null,
+      role: role || 'teacher',
+    });
+
+    return new Response(JSON.stringify({ id, success: true }), {
+      status: 201,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    return new Response(`Error: ${error}`, { status: 500 });
+  }
+}
+
+async function removeUser(env: Env, institutionId: string, userId: string): Promise<Response> {
+  try {
+    await deleteAuthorizedUser(env, userId);
     return new Response(JSON.stringify({ success: true }), {
       headers: { 'Content-Type': 'application/json' },
     });

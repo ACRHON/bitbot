@@ -12,11 +12,13 @@ import {
   getAttendanceSession,
   listAttendanceSessions,
   listAttendanceLogs,
+  updateAttendanceSession,
+  getCronJob,
 } from '../db/queries';
 import { sendAttendanceCard, sendCardMessage } from '../services/feishu-api';
 import * as bitable from '../services/bitable';
 
-export type CronJobType = 'class_reminder' | 'class_reminder_fixed' | 'attendance_summary';
+export type CronJobType = 'class_reminder' | 'class_reminder_fixed' | 'attendance_summary' | 'course_time_advance';
 
 export interface CronJobConfig {
   record_id?: string;
@@ -34,6 +36,8 @@ export interface CronJobConfig {
   target_type?: 'chat_id' | 'open_id';
   target_id?: string;
   reminder_minutes?: number;
+  advance_days?: number;
+  notify_chat?: boolean;
 }
 
 /**
@@ -52,6 +56,18 @@ export async function handleCronTrigger(env: Env): Promise<void> {
       console.error(`Cron job ${job.id} failed:`, error);
     }
   }
+}
+
+export async function executeCronJobById(env: Env, jobId: string): Promise<void> {
+  const job = await getCronJob(env, jobId);
+  if (!job) {
+    throw new Error(`Cron job ${jobId} not found`);
+  }
+  if (job.enabled !== 1) {
+    console.log(`Cron job ${jobId} is disabled, skipping`);
+    return;
+  }
+  await executeCronJob(env, job);
 }
 
 async function executeCronJob(env: Env, job: any): Promise<void> {
@@ -77,6 +93,8 @@ async function executeCronJob(env: Env, job: any): Promise<void> {
     await executeClassReminder(env, job, institution, config);
   } else if (job.job_type === 'attendance_summary') {
     await executeAttendanceSummary(env, job, institution, config);
+  } else if (job.job_type === 'course_time_advance') {
+    await executeCourseTimeAdvance(env, job, institution, config);
   }
 
   // Update last_run_at
@@ -216,6 +234,7 @@ async function executeClassReminder(
       targetType,
       sessionId,
       recordId,
+      null, // openMessageId not available at cron time
       courseName,
       className,
       teacherName,
@@ -223,6 +242,12 @@ async function executeClassReminder(
     );
 
     console.log(`Sent attendance card for session ${sessionId}, message_id: ${cardResult.messageId}`);
+
+    // Update session with card_id and message_id
+    await updateAttendanceSession(env, sessionId, {
+      card_id: cardResult.cardId,
+      message_id: cardResult.messageId,
+    });
   } catch (error) {
     console.error(`Failed to send attendance card:`, error);
   }
@@ -288,6 +313,63 @@ async function executeAttendanceSummary(
   );
 }
 
+async function executeCourseTimeAdvance(
+  env: Env,
+  job: any,
+  institution: any,
+  config: CronJobConfig
+): Promise<void> {
+  if (!config.record_id) {
+    console.log('course_time_advance job missing record_id');
+    return;
+  }
+
+  const bitableConfig = {
+    appId: institution.feishu_app_id,
+    appSecret: institution.feishu_app_secret,
+    baseId: institution.bitable_base_id || '',
+  };
+
+  const scheduleTableId = institution.bitable_schedule_table_id;
+  if (!scheduleTableId) {
+    console.log('Schedule table not configured');
+    return;
+  }
+
+  const days = config.advance_days || 7;
+
+  try {
+    await bitable.advanceScheduleTime(bitableConfig, scheduleTableId, config.record_id, days);
+    console.log(`Advanced schedule ${config.record_id} by ${days} days`);
+
+    if (config.notify_chat) {
+      const feishuConfig = {
+        appId: institution.feishu_app_id,
+        appSecret: institution.feishu_app_secret,
+      };
+      const courseInfo = config.course_name ? `${config.course_name} ${config.class_name || ''}` : `record ${config.record_id}`;
+      await sendCardMessage(
+        feishuConfig,
+        config.target_id,
+        config.target_type as 'chat_id' | 'open_id',
+        {
+          type: 'card',
+          data: {
+            body: {
+              elements: [{
+                tag: 'div',
+                text: { tag: 'plain_text', content: `📅 ${courseInfo} 课程时间已自动顺延 ${days} 天` }
+              }]
+            }
+          }
+        }
+      );
+    }
+  } catch (error) {
+    console.error(`Failed to advance course time:`, error);
+  }
+}
+
 /**
  * Parse cron schedule to determine if should run
  * Simplified version - in production use a proper cron parser
@@ -321,25 +403,24 @@ function shouldRunNow(now: number, schedule: string, jobType: string): boolean {
   const scheduleInfo = parseScheduleTime(schedule);
 
   if (jobType === 'class_reminder') {
-    // Loop course: check if current time matches the scheduled weekday
-    // For class_reminder, run every minute during business hours if it matches
-    if (currentHour >= 7 && currentHour <= 21) {
-      // Check if weekday matches (0=Sun, 1=Mon, etc.)
-      if (scheduleInfo.weekday !== null && scheduleInfo.weekday !== currentWeekday) {
-        return false;
-      }
-      // Check if hour and minute match
-      if (scheduleInfo.hour === currentHour && scheduleInfo.minute === currentMinute) {
-        return true;
-      }
+    // First check if time matches (this is the primary condition)
+    const timeMatches = scheduleInfo.hour === currentHour && scheduleInfo.minute === currentMinute;
+
+    // Check weekday constraint (if weekday is specified, must match)
+    if (scheduleInfo.weekday !== null && scheduleInfo.weekday !== currentWeekday) {
+      return false;
     }
-    return false;
+
+    // Only run during business hours 7-21
+    if (currentHour < 7 || currentHour > 21) {
+      return false;
+    }
+
+    return timeMatches;
   } else if (jobType === 'class_reminder_fixed') {
-    // Fixed date course: check exact time match
+    // Fixed date course: check exact date and time match
     if (scheduleInfo.day === currentDay && scheduleInfo.month === currentMonth) {
-      if (scheduleInfo.hour === currentHour && scheduleInfo.minute === currentMinute) {
-        return true;
-      }
+      return scheduleInfo.hour === currentHour && scheduleInfo.minute === currentMinute;
     }
     return false;
   }

@@ -125,7 +125,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     return new Response('bitbot API server running', { status: 200 });
   } catch (error) {
     console.error('Unhandled error:', error);
-    return new Response(`Internal Error: ${error}`, { status: 500 });
+    return new Response('Internal Server Error', { status: 500 });
   }
 }
 
@@ -171,7 +171,8 @@ async function handleAdminStats(request: Request, env: Env): Promise<Response> {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: String(error) }), {
+    console.error('Stats error:', error);
+    return new Response(JSON.stringify({ error: '服务器内部错误' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

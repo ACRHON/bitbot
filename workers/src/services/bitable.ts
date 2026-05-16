@@ -309,10 +309,78 @@ export async function checkAttendanceExists(
   studentName: string,
   recordId: string
 ): Promise<boolean> {
+  // Check if a record exists with matching student name and record_id
   const filter = encodeURIComponent(
-    `AND(("${studentName}" = "${studentName}"), ("record_id" = "${recordId}"))`
+    `AND(("[姓名]" = "${studentName}"), ("record_id" = "${recordId}"))`
   );
 
   const records = await getRecords(config, tableId, filter);
   return records.length > 0;
+}
+
+/**
+ * Get makeup records from sign record table
+ * Scans for records where 签到方式 contains "补课"
+ */
+export async function getMakeupRecords(
+  config: BitableConfig,
+  tableId: string,
+  courseName: string,
+  className: string,
+  scheduledTime: number
+): Promise<Array<{ record_id: string; name: string; [key: string]: any }>> {
+  // Filter: 签到方式 contains "补课" and 课程/class matches
+  const filter = encodeURIComponent(
+    `AND(AND(CurrentValue.[签到方式] = "补课", CurrentValue.[课程] = "${courseName}"), CurrentValue.[班级] = "${className}")`
+  );
+
+  const records = await getRecords(config, tableId, filter);
+  return records
+    .filter(record => {
+      const time = record.fields?.['上课时间'];
+      // Match if scheduled time is within the same day (±24h)
+      if (time && scheduledTime) {
+        const recordTime = typeof time === 'number' ? time : new Date(time).getTime();
+        return Math.abs(recordTime - scheduledTime) < 24 * 60 * 60 * 1000;
+      }
+      return true;
+    })
+    .map(record => ({
+      record_id: record.record_id,
+      name: record.fields?.['姓名'] || '',
+      ...record.fields,
+    }));
+}
+
+/**
+ * Advance schedule time by N days
+ */
+export async function advanceScheduleTime(
+  config: BitableConfig,
+  tableId: string,
+  recordId: string,
+  days: number = 7
+): Promise<void> {
+  const record = await getRecord(config, tableId, recordId);
+  if (!record) return;
+
+  const fields = record.fields || {};
+  const updateData: Record<string, number> = {};
+
+  const startTime = fields['上课时间'];
+  const endTime = fields['下课时间'];
+
+  if (startTime) {
+    const originalStart = typeof startTime === 'number' ? startTime : new Date(startTime).getTime();
+    updateData['上课时间'] = originalStart + days * 24 * 60 * 60 * 1000;
+  }
+
+  if (endTime) {
+    const originalEnd = typeof endTime === 'number' ? endTime : new Date(endTime).getTime();
+    updateData['下课时间'] = originalEnd + days * 24 * 60 * 60 * 1000;
+  }
+
+  if (Object.keys(updateData).length > 0) {
+    await updateRecord(config, tableId, recordId, updateData);
+  }
 }

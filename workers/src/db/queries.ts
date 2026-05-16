@@ -61,6 +61,19 @@ export interface AttendanceSession {
   completed_at: number | null;
 }
 
+export interface MakeupRequest {
+  id: string;
+  institution_id: string;
+  student_name: string;
+  student_record_id: string | null;
+  course_name: string | null;
+  class_name: string | null;
+  scheduled_time: number | null;
+  source: string;
+  status: string;
+  created_at: number;
+}
+
 // ============ Institutions ============
 
 export async function getInstitutionByAppId(env: Env, appId: string): Promise<Institution | null> {
@@ -121,6 +134,7 @@ export async function deleteInstitution(env: Env, id: string): Promise<void> {
   await env.DB.prepare('DELETE FROM authorized_users WHERE institution_id = ?').bind(id).run();
   await env.DB.prepare('DELETE FROM cron_jobs WHERE institution_id = ?').bind(id).run();
   await env.DB.prepare('DELETE FROM attendance_sessions WHERE institution_id = ?').bind(id).run();
+  await env.DB.prepare('DELETE FROM makeup_requests WHERE institution_id = ?').bind(id).run();
   // 清除激活码的使用记录（保留审计历史）
   await env.DB.prepare('UPDATE activation_codes SET used_by = NULL WHERE used_by = ?').bind(id).run();
   await env.DB.prepare('DELETE FROM institutions WHERE id = ?').bind(id).run();
@@ -201,6 +215,12 @@ export async function updateCronJob(env: Env, id: string, data: Partial<CronJob>
 
 export async function deleteCronJob(env: Env, id: string): Promise<void> {
   await env.DB.prepare('DELETE FROM cron_jobs WHERE id = ?').bind(id).run();
+}
+
+export async function getCronJob(env: Env, id: string): Promise<CronJob | null> {
+  const stmt = env.DB.prepare('SELECT * FROM cron_jobs WHERE id = ?').bind(id);
+  const result = await stmt.first();
+  return result as CronJob | null;
 }
 
 // ============ Attendance Sessions ============
@@ -303,6 +323,67 @@ export async function listAttendanceLogs(
   const stmt = env.DB.prepare('SELECT * FROM attendance_logs WHERE session_id = ? ORDER BY created_at DESC').bind(sessionId);
   const result = await stmt.all();
   return result.results as AttendanceLog[];
+}
+
+// ============ Makeup Requests ============
+
+export async function createMakeupRequest(
+  env: Env,
+  data: Omit<MakeupRequest, 'created_at'>
+): Promise<void> {
+  const now = Date.now();
+  const stmt = env.DB.prepare(`
+    INSERT INTO makeup_requests (id, institution_id, student_name, student_record_id,
+      course_name, class_name, scheduled_time, source, status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    data.id, data.institution_id, data.student_name, data.student_record_id,
+    data.course_name, data.class_name, data.scheduled_time,
+    data.source || 'bitable', data.status || 'pending', now
+  );
+  await stmt.run();
+}
+
+export async function getMakeupRequests(
+  env: Env,
+  institutionId: string,
+  courseName?: string,
+  className?: string,
+  scheduledTime?: number
+): Promise<MakeupRequest[]> {
+  let sql = 'SELECT * FROM makeup_requests WHERE institution_id = ?';
+  const bindings: any[] = [institutionId];
+
+  if (courseName) {
+    sql += ' AND course_name = ?';
+    bindings.push(courseName);
+  }
+  if (className) {
+    sql += ' AND class_name = ?';
+    bindings.push(className);
+  }
+  if (scheduledTime) {
+    sql += ' AND scheduled_time = ?';
+    bindings.push(scheduledTime);
+  }
+
+  sql += ' ORDER BY created_at DESC';
+  const stmt = env.DB.prepare(sql).bind(...bindings);
+  const result = await stmt.all();
+  return result.results as MakeupRequest[];
+}
+
+export async function updateMakeupRequestStatus(
+  env: Env,
+  id: string,
+  status: string
+): Promise<void> {
+  const stmt = env.DB.prepare('UPDATE makeup_requests SET status = ? WHERE id = ?').bind(status, id);
+  await stmt.run();
+}
+
+export async function deleteMakeupRequest(env: Env, id: string): Promise<void> {
+  await env.DB.prepare('DELETE FROM makeup_requests WHERE id = ?').bind(id).run();
 }
 
 // ============ Admin Users ============

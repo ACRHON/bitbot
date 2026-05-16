@@ -193,6 +193,7 @@ export async function sendAttendanceCard(
   receiveIdType: 'chat_id' | 'open_id',
   sessionId: string,
   recordId: string,
+  openMessageId: string | null,
   courseName: string,
   className: string,
   teacherName: string,
@@ -243,6 +244,7 @@ export async function sendAttendanceCard(
                     action: 'start_attendance',
                     session_id: sessionId,
                     record_id: recordId,
+                    open_message_id: openMessageId || '',
                   },
                 },
               ],
@@ -559,20 +561,63 @@ export async function sendAttendanceSummaryCard(
 
 /**
  * Verify webhook signature
+ * Feishu uses HMAC-SHA256 with encrypt_key as the secret
  */
-export function verifySignature(
+export async function verifySignature(
   encryptKey: string,
   timestamp: string,
   nonce: string,
   signature: string,
   body: string
-): boolean {
-  // Simplified verification - in production, use proper HMAC-SHA256
-  const str = `${encryptKey}${timestamp}${nonce}${body}`;
-  const encoder = new TextEncoder();
-  // Note: Cloudflare Workers doesn't have crypto.subtle in older runtimes
-  // For now, we do basic validation
-  return signature.length > 0;
+): Promise<boolean> {
+  if (!encryptKey || !signature) {
+    return false;
+  }
+
+  // Build the string to sign: encrypt_key + timestamp + nonce + body
+  const strToSign = `${encryptKey}${timestamp}${nonce}${body}`;
+
+  try {
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(encryptKey);
+    const messageData = encoder.encode(strToSign);
+
+    // Create HMAC key and sign
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      keyData,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+
+    const signatureBuffer = await crypto.subtle.sign(
+      { name: 'HMAC', hash: 'SHA-256' },
+      cryptoKey,
+      messageData
+    );
+
+    // Convert to base64
+    const signatureArray = new Uint8Array(signatureBuffer);
+    let binary = '';
+    for (let i = 0; i < signatureArray.length; i++) {
+      binary += String.fromCharCode(signatureArray[i]);
+    }
+    const expectedSignature = btoa(binary);
+
+    // Constant-time comparison to prevent timing attacks
+    if (signature.length !== expectedSignature.length) {
+      return false;
+    }
+    let result = 0;
+    for (let i = 0; i < signature.length; i++) {
+      result |= signature.charCodeAt(i) ^ expectedSignature.charCodeAt(i);
+    }
+    return result === 0;
+  } catch (e) {
+    console.error('Signature verification error:', e);
+    return false;
+  }
 }
 
 /**

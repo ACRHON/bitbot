@@ -2,7 +2,8 @@
  * Admin Cron Job Handler
  */
 
-import { Env, listCronJobs, getInstitutionById, createCronJob, updateCronJob, deleteCronJob, getAdminUserById, listInstitutions } from '../db/queries';
+import { Env, listCronJobs, getInstitutionById, createCronJob, updateCronJob, deleteCronJob, getAdminUserById, getCronJob, getEnabledCronJobs } from '../db/queries';
+import { handleCronTrigger, executeCronJobById } from './cron';
 
 export async function handleAdminCronRequest(
   env: Env,
@@ -35,6 +36,12 @@ export async function handleAdminCronRequest(
   if (request.method === 'PUT' && path.startsWith('/api/admin/cron/')) {
     const id = path.split('/')[4];
     return await update(env, id, request);
+  }
+
+  // Route: POST /api/admin/cron/:id/trigger
+  if (request.method === 'POST' && path.match(/^\/api\/admin\/cron\/[^/]+\/trigger$/)) {
+    const id = path.split('/')[4];
+    return await trigger(env, id);
   }
 
   // Route: DELETE /api/admin/cron/:id
@@ -166,6 +173,31 @@ async function remove(env: Env, id: string): Promise<Response> {
     });
   } catch (error) {
     return new Response(JSON.stringify({ error: String(error) }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+async function trigger(env: Env, id: string): Promise<Response> {
+  try {
+    const job = await getCronJob(env, id);
+    if (!job) {
+      return new Response('Cron job not found', { status: 404 });
+    }
+
+    // Execute the specific cron job directly
+    await executeCronJobById(env, id);
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'Cron job triggered successfully'
+    }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error('Trigger cron job error:', error);
+    return new Response(JSON.stringify({ error: '触发失败' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

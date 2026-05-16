@@ -90,6 +90,24 @@ const CronJobsAdminPage: React.FC = () => {
     }
   };
 
+  const triggerJob = async (id: string) => {
+    if (!confirm('确定要立即触发该定时任务吗？')) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/cron/${id}/trigger`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        alert('触发成功');
+      } else {
+        alert('触发失败');
+      }
+    } catch (err) {
+      console.error('Failed to trigger cron job:', err);
+      alert('触发失败');
+    }
+  };
+
   const deleteJob = async (id: string) => {
     if (!confirm('确定要删除该定时任务吗？')) return;
     try {
@@ -160,6 +178,13 @@ const CronJobsAdminPage: React.FC = () => {
                     {formatLastRun(job.last_run_at)}
                   </td>
                   <td style={{ padding: '12px 8px' }}>
+                    <button
+                      className="btn btn-secondary"
+                      style={{ padding: '4px 8px', marginRight: '4px' }}
+                      onClick={() => triggerJob(job.id)}
+                    >
+                      触发
+                    </button>
                     <button
                       className="btn btn-secondary"
                       style={{ padding: '4px 8px', marginRight: '4px' }}
