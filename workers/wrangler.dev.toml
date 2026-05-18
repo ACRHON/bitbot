@@ -18,6 +18,11 @@ database_id = "44e58750-3b53-4be7-b37c-b62be926cc9b"
 [env.dev.triggers]
 crons = ["* * * * *"]
 
+[env.dev.routes]
+routes = [
+  { pattern = "getapi.de5.net", zone_name = "getapi.de5.net" }
+]
+
 [env.dev.vars]
 ENV = "dev"
 
