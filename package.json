@@ -16,6 +16,7 @@
   "devDependencies": {
     "concurrently": "^8.2.2",
     "localtunnel": "^2.0.2",
+    "typescript": "^6.0.3",
     "wrangler": "^4.90.0"
   }
 }

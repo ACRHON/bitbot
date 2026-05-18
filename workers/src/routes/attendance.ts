@@ -312,7 +312,28 @@ async function getSessionStudents(env: Env, sessionId: string): Promise<Response
 
     const students = await bitable.getStudents(bitableConfig, institution.bitable_student_table_id);
 
-    return new Response(JSON.stringify({ students }), {
+    // Also scan for makeup students from sign record table
+    let makeupStudents: any[] = [];
+    if (institution.bitable_sign_record_table_id && session.course_name && session.class_name) {
+      const makeupRecords = await bitable.getMakeupRecords(
+        bitableConfig,
+        institution.bitable_sign_record_table_id,
+        session.course_name,
+        session.class_name,
+        session.scheduled_time || Date.now()
+      );
+
+      makeupStudents = makeupRecords.map(record => ({
+        record_id: record.record_id,
+        name: record.name,
+        isMakeup: true,
+        sign_method: '补课',
+        course_name: session.course_name,
+        class_name: session.class_name,
+      }));
+    }
+
+    return new Response(JSON.stringify({ students, makeupStudents }), {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
@@ -349,13 +370,12 @@ async function getSessionAbsences(env: Env, sessionId: string): Promise<Response
     // Get all records from sign record table
     const records = await bitable.getRecords(bitableConfig, institution.bitable_sign_record_table_id);
 
-    // Filter for absences in this session
-    // We match by course_name, class_name, and scheduled_time
+    // Filter for absences in this session (excluding makeup which is already "已到")
     const absences = records.filter(record => {
       const fields = record.fields || {};
-      return fields['签到情况'] === '缺勤' &&
-        fields['课程'] === session.course_name &&
-        fields['班级'] === session.class_name;
+      const isAbsence = fields['签到情况'] === '缺勤';
+      const isMatchCourse = fields['课程'] === session.course_name && fields['班级'] === session.class_name;
+      return isAbsence && isMatchCourse;
     }).map(record => ({
       record_id: record.record_id,
       name: record.fields?.['姓名'] || '',

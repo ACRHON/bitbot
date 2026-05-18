@@ -122,7 +122,7 @@ export async function signStudent(
   return res.json();
 }
 
-export async function getSessionStudents(sessionId: string): Promise<{ students: Student[]; error?: string }> {
+export async function getSessionStudents(sessionId: string): Promise<{ students: Student[]; makeupStudents?: any[]; error?: string }> {
   if (DEV_MODE) {
     return mockGetSessionStudents(sessionId);
   }

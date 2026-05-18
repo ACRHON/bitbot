@@ -94,7 +94,7 @@ export async function mockGetSessionStudents(_sessionId: string) {
     ...s,
     status: Math.random() > 0.7 ? 'sign_in' : undefined,
   }));
-  return { students };
+  return { students, makeupStudents: [] };
 }
 
 export async function mockGetSessionAbsences(_sessionId: string) {

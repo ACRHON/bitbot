@@ -65,6 +65,21 @@ CREATE TABLE IF NOT EXISTS attendance_sessions (
   FOREIGN KEY (institution_id) REFERENCES institutions(id)
 );
 
+-- 补课学员申请表
+CREATE TABLE IF NOT EXISTS makeup_requests (
+  id TEXT PRIMARY KEY,
+  institution_id TEXT NOT NULL,
+  student_name TEXT NOT NULL,
+  student_record_id TEXT,
+  course_name TEXT,
+  class_name TEXT,
+  scheduled_time INTEGER,
+  source TEXT DEFAULT 'bitable',
+  status TEXT DEFAULT 'pending',
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (institution_id) REFERENCES institutions(id)
+);
+
 -- 管理员用户表
 CREATE TABLE IF NOT EXISTS admin_users (
   id TEXT PRIMARY KEY,

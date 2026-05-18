@@ -15,6 +15,7 @@ const Attendance: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<AttendanceSession | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
+  const [makeupStudents, setMakeupStudents] = useState<any[]>([]);
   const [signing, setSigning] = useState<string | null>(null);
 
   // UI states
@@ -75,6 +76,11 @@ const Attendance: React.FC = () => {
             { record_id: '4', name: '赵六', status: undefined },
             { record_id: '5', name: '钱七', status: undefined },
           ]);
+        }
+
+        // Set makeup students if any
+        if (result.makeupStudents && result.makeupStudents.length > 0) {
+          setMakeupStudents(result.makeupStudents);
         }
       } catch (err) {
         setError('加载失败');
@@ -231,7 +237,10 @@ const Attendance: React.FC = () => {
     return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
   };
 
-  const getStatusLabel = (status?: string) => {
+  const getStatusLabel = (status?: string, isMakeup?: boolean) => {
+    if (isMakeup) {
+      return { label: '🔵 补课', class: 'badge-info' };
+    }
     switch (status) {
       case 'sign_in': return { label: '✅ 已到', class: 'badge-success' };
       case 'leave': return { label: '📝 请假', class: 'badge-warning' };
@@ -364,17 +373,41 @@ const Attendance: React.FC = () => {
       {/* Student List */}
       <div className="card">
         <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>
-          学员列表 ({students.length}人)
+          学员列表 ({students.length + makeupStudents.length}人)
         </h3>
 
-        {students.length === 0 ? (
+        {/* Makeup Students Section */}
+        {makeupStudents.length > 0 && (
+          <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px dashed var(--border-color)' }}>
+            <div style={{ fontSize: '13px', color: 'var(--info-color)', marginBottom: '8px', fontWeight: 600 }}>
+              🔵 补课学员（自动识别）
+            </div>
+            {makeupStudents.map(student => {
+              return (
+                <div key={student.record_id} className="list-item" style={{ position: 'relative', background: 'rgba(59, 130, 246, 0.05)' }}>
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{student.name}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--info-color)' }}>
+                      🔵 补课学员
+                    </div>
+                  </div>
+                  <div>
+                    <span className="badge badge-info">已到（补课）</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {students.length === 0 && makeupStudents.length === 0 ? (
           <div className="empty-state">
             <p className="text-secondary">暂无学员</p>
           </div>
         ) : (
           <div>
             {students.map(student => {
-              const statusInfo = getStatusLabel(student.status);
+              const statusInfo = getStatusLabel(student.status, false);
               const isSigned = !!student.status;
 
               return (

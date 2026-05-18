@@ -265,6 +265,57 @@ async function syncSchedules(env: Env, request: Request): Promise<Response> {
           });
           results.created++;
         }
+
+        // Also create course_time_advance job if end_time is available
+        if (schedule.end_time) {
+          const advanceJobConfig = {
+            record_id: schedule.record_id,
+            course_name: schedule.course_name,
+            class_name: schedule.course_name,
+            advance_days: 7,
+            notify_chat: false,
+            target_type: 'chat_id',
+            target_id: '',
+          };
+
+          // Schedule advance job to run 5 minutes after end_time
+          const [endHour, endMinute] = schedule.end_time.split(':');
+          const advanceMinute = (parseInt(endMinute, 10) + 5) % 60;
+          const advanceHour = parseInt(endHour, 10) + Math.floor((parseInt(endMinute, 10) + 5) / 60);
+          const advanceHourStr = String(advanceHour % 24).padStart(2, '0');
+          const advanceMinuteStr = String(advanceMinute).padStart(2, '0');
+
+          if (schedule.weekday) {
+            const weekdayNum = weekdayToNumber(schedule.weekday);
+            const advanceSchedule = `${advanceMinuteStr} ${advanceHourStr} * * ${weekdayNum}`;
+
+            const advanceId = crypto.randomUUID();
+            await createCronJob(env, {
+              id: advanceId,
+              institution_id: institution_id,
+              job_type: 'course_time_advance',
+              schedule: advanceSchedule,
+              enabled: 1,
+              config: JSON.stringify(advanceJobConfig),
+            });
+            results.created++;
+          } else if (schedule.scheduled_date) {
+            const date = new Date(schedule.scheduled_date);
+            // For fixed date, advance runs same day at end_time + 5min
+            const advanceSchedule = `${advanceMinuteStr} ${advanceHourStr} ${date.getDate()} ${date.getMonth() + 1} *`;
+
+            const advanceId = crypto.randomUUID();
+            await createCronJob(env, {
+              id: advanceId,
+              institution_id: institution_id,
+              job_type: 'course_time_advance',
+              schedule: advanceSchedule,
+              enabled: 1,
+              config: JSON.stringify(advanceJobConfig),
+            });
+            results.created++;
+          }
+        }
       } catch (err) {
         results.errors.push(`Record ${schedule.record_id}: ${String(err)}`);
       }

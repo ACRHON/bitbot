@@ -109,6 +109,21 @@ CREATE TABLE IF NOT EXISTS activation_codes (
 -- 机构表添加激活码字段
 -- ALTER TABLE institutions ADD COLUMN activation_code TEXT;
 
+-- 补课学员申请表
+CREATE TABLE IF NOT EXISTS makeup_requests (
+  id TEXT PRIMARY KEY,
+  institution_id TEXT NOT NULL,
+  student_name TEXT NOT NULL,
+  student_record_id TEXT,
+  course_name TEXT,
+  class_name TEXT,
+  scheduled_time INTEGER,
+  source TEXT DEFAULT 'bitable',
+  status TEXT DEFAULT 'pending',
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (institution_id) REFERENCES institutions(id)
+);
+
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_institutions_app_id ON institutions(feishu_app_id);
 CREATE INDEX IF NOT EXISTS idx_authorized_users_openid ON authorized_users(feishu_open_id);
