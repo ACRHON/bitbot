@@ -22,7 +22,7 @@ export default defineConfig({
     },
   },
   define: {
-    'import.meta.env.VITE_API_BASE': JSON.stringify('https://bitbot-dev.hallofaiden.workers.dev'),
+    'import.meta.env.VITE_API_BASE': JSON.stringify('https://getapi.de5.net'),
     'import.meta.env.VITE_APP_TITLE': JSON.stringify('[DEV] bitbot'),
   },
 });
