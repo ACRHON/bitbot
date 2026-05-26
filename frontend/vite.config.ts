@@ -21,4 +21,8 @@ export default defineConfig({
       },
     },
   },
+  define: {
+    'import.meta.env.VITE_API_BASE': JSON.stringify('https://fastbot.de5.net'),
+    'import.meta.env.VITE_WEBHOOK_BASE': JSON.stringify('https://fastbot.de5.net'),
+  },
 });
