@@ -16,7 +16,7 @@ interface Stats {
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
-const WEBHOOK_BASE = `${window.location.origin}/webhook/feishu`;
+const WEBHOOK_BASE = import.meta.env.VITE_WEBHOOK_BASE || `${window.location.origin}/webhook/feishu`;
 
 const AdminDashboard: React.FC = () => {
   const { token } = useAuth();
