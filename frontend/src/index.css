@@ -94,6 +94,12 @@ body {
   cursor: not-allowed;
 }
 
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
 .page-header {
   padding: 16px 0;
   margin-bottom: 16px;
