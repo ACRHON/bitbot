@@ -22,6 +22,10 @@ crons = ["* * * * *"]
 pattern = "getapi.de5.net"
 zone_name = "getapi.de5.net"
 
+[[env.dev.routes]]
+pattern = "dev.bitbot-dev.pages.dev"
+zone_name = "dev.bitbot-dev.pages.dev"
+
 [env.dev.vars]
 ENV = "dev"
 
